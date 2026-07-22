@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UAV ETa & CWSI Spatial Mapper</title>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.1/dist-browser/geotiff.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.9.2/dist/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    :root {
+        --bg-color: #f8fafc;
+        --card-bg: #ffffff;
+        --primary: #0284c7;
+        --primary-hover: #0369a1;
+        --text-main: #0f172a;
+        --border: #e2e8f0;
+        --success: #059669;
+        --success-hover: #047857;
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        margin: 0;
+        padding: 20px;
+    }
+    .container { max-width: 1650px; margin: 0 auto; }
+    header { margin-bottom: 20px; border-bottom: 3px solid var(--primary); padding-bottom: 10px; }
+    .eyebrow { font-size: 11px; font-weight: 700; color: var(--primary-hover); letter-spacing: 0.6px; margin-bottom: 4px; }
+    h1 { margin: 0; color: #0c4a6e; font-size: 24px; }
+    .grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .section-title { font-size: 13px; font-weight: 700; margin-top: 0; margin-bottom: 12px; color: #0369a1; border-left: 4px solid var(--primary); padding-left: 8px; text-transform: uppercase; letter-spacing: 0.5px;}
+    .input-group { margin-bottom: 10px; }
+    label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 2px; color: #475569; }
+    input[type="number"], input[type="text"], select, input[type="file"] { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; font-size: 12px; }
+    .btn { background: var(--primary); color: white; border: none; padding: 10px 14px; border-radius: 4px; cursor: pointer; font-weight: 600; width: 100%; font-size: 13px; transition: all 0.15s; }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: var(--success-hover); }
+    .btn-small { width: auto; padding: 6px 12px; font-size: 11px; }
+    .btn-ghost { background: #f1f5f9; color: #334155; }
+    .btn-ghost:hover { background: #e2e8f0; }
+
+    .toggle-group { display: flex; background: #f1f5f9; padding: 4px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; flex-wrap: wrap; }
+    .toggle-btn { flex: 1; background: transparent; border: none; color: #64748b; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; transition: all 0.2s; white-space: nowrap; }
+    .toggle-btn.active { background: var(--primary); color: white; }
+    .toggle-btn:disabled { color: #cbd5e1; cursor: not-allowed; }
+
+    .workspace-layout { display: flex; flex-direction: column; gap: 20px; }
+    .map-shell { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420px; background: #0f172a; border-radius: 6px; position: relative; overflow: hidden; }
+    #mapEl { width: 100%; height: 550px; display: none; }
+    canvas#outputCanvas { max-width: 100%; max-height: 550px; image-rendering: pixelated; cursor: crosshair; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 0; align-items: center; background: #f1f5f9; padding: 10px; border-radius: 6px; flex-wrap: wrap; }
+    .legend { display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 500; background: #f8fafc; padding: 8px; border-radius: 4px; border: 1px solid var(--border); width: fit-content; }
+    .gradient-bar { width: 150px; height: 12px; border-radius: 2px; }
+
+    .chart-card { background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+    .chart-container { width: 100%; background: #ffffff; display: flex; justify-content: center; margin-top: 10px;}
+    .alert-box { background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; line-height: 1.4; }
+    .alert-box.warn { background-color: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .alert-box.info { background-color: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
+    .hint { font-size: 11px; color: #64748b; margin: -4px 0 10px 0; }
+
+    .progress-wrap { margin: 8px 0 10px 0; }
+    .progress-track { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.15s ease; }
+    .progress-label { font-size: 11px; color: #475569; margin-top: 4px; display: flex; justify-content: space-between; }
+
+    .treatment-label { background: rgba(255,255,255,0.9); border: 1px solid #f97316; border-radius: 3px; padding: 1px 5px; font-size: 10px; font-weight: 700; color: #9a3412; white-space: nowrap; }
+    .chart-scroll { overflow-x: auto; }
+
+    .dropzone { border: 2px dashed var(--border); border-radius: 6px; padding: 14px 10px; text-align: center; cursor: pointer; background: #f8fafc; transition: background 0.15s, border-color 0.15s; }
+    .dropzone:hover, .dropzone.dragover { background: #eff6ff; border-color: var(--primary); }
+    .dropzone-text { font-size: 11px; color: #64748b; }
+
+    /* Pixel Inspector */
+    #inspectorEmpty { font-size: 12px; color: #94a3b8; padding: 20px 0; text-align: center; border: 1px dashed var(--border); border-radius: 6px; }
+    .insp-loc { font-size: 13px; font-weight: 700; color: #0c4a6e; margin-bottom: 8px; }
+    .insp-sub { font-size: 11px; color: #64748b; margin-bottom: 10px; }
+    .insp-group-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; margin: 10px 0 4px 0; }
+    .insp-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px dashed #f1f5f9; }
+    .insp-row span { color: #475569; }
+    .insp-row b { color: #0f172a; }
+
+    .leaflet-popup-content { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="eyebrow">UC DAVIS ADVANCED IRRIGATION LAB</div>
+        <h1>UAV ETa & CWSI Spatial Mapper</h1>
+    </header>
+
+    <div class="grid">
+        <!-- Configuration Sidebar -->
+        <div class="card">
+            <div class="section-title">Analysis Mode</div>
+            <div class="toggle-group" id="analysisModeToggle">
+                <button class="toggle-btn active" data-mode="ETa">Actual ET (ETa)</button>
+                <button class="toggle-btn" data-mode="CWSI">Water Stress (CWSI)</button>
+            </div>
+
+            <div class="section-title">1. Orthomosaic File</div>
+            <div class="input-group">
+                <label for="tifUpload">Uncompressed Multispectral/Thermal TIF</label>
+                <input type="file" id="tifUpload" accept=".tif,.tiff">
+            </div>
+            <div class="progress-wrap" id="uploadProgressWrap" style="display:none;">
+                <div class="progress-track"><div class="progress-fill" id="uploadProgressFill"></div></div>
+                <div class="progress-label"><span id="uploadProgressText">Reading file...</span><span id="uploadProgressPct">0%</span></div>
+            </div>
+
+            <div id="bandMappingContainer" style="display:none; background: #f8fafc; padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid var(--border);">
+                <div class="input-group"><label for="redBandSelect">Red Channel</label><select id="redBandSelect"></select></div>
+                <div class="input-group"><label for="nirBandSelect">NIR Channel</label><select id="nirBandSelect"></select></div>
+                <div class="input-group"><label for="thermalBandSelect">Thermal Channel (°C)</label><select id="thermalBandSelect"></select></div>
+            </div>
+
+            <div id="geoStatusBox" class="alert-box" style="display:none;"></div>
+
+            <div class="section-title" style="margin-top:15px;">2. Treatment Boundaries (Optional)</div>
+            <div class="input-group">
+                <label for="treatmentUpload">Shapefile (.shp + .dbf + .prj + .shx)</label>
+                <div class="dropzone" id="shapefileDropzone">
+                    <input type="file" id="treatmentUpload" accept=".shp,.shx,.dbf,.prj" multiple style="display:none;">
+                    <div class="dropzone-text">Click, or drag & drop all shapefile parts here at once</div>
+                </div>
+            </div>
+            <div class="progress-wrap" id="shapefileProgressWrap" style="display:none;">
+                <div class="progress-track"><div class="progress-fill" id="shapefileProgressFill"></div></div>
+                <div class="progress-label"><span id="shapefileProgressText">Reading shapefile...</span><span id="shapefileProgressPct">0%</span></div>
+            </div>
+            <div id="treatmentStatusBox" class="alert-box info" style="display:none;"></div>
+            <div id="treatmentColumnGroup" class="input-group" style="display:none;">
+                <label for="treatmentColumnSelect">Treatment Name Column</label>
+                <select id="treatmentColumnSelect"></select>
+            </div>
+            <div class="progress-wrap" id="treatmentProgressWrap" style="display:none;">
+                <div class="progress-track"><div class="progress-fill" id="treatmentProgressFill"></div></div>
+                <div class="progress-label"><span id="treatmentProgressText">Matching pixels to polygons...</span><span id="treatmentProgressPct">0%</span></div>
+            </div>
+
+            <div class="section-title" style="margin-top:15px;">3. Boundary Calibration</div>
+            <div class="input-group"><label for="eto">Reference ETo (mm/day)</label><input type="number" id="eto" value="6.0" step="0.1"></div>
+            <div class="input-group"><label for="twet">T_wet (Cold Boundary, °C)</label><input type="number" id="twet" value="22.0" step="0.1"></div>
+            <div class="input-group"><label for="tdry">T_dry (Hot Boundary, °C)</label><input type="number" id="tdry" value="38.5" step="0.1"></div>
+            <div class="input-group"><label for="tair">T_air (Ambient Air Temp, °C)</label><input type="number" id="tair" value="28.0" step="0.1"></div>
+
+            <div style="background:#f8fafc; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:10px;">
+                <label style="margin-bottom:6px;">Auto-Estimate Boundaries from Scene</label>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <div style="flex:1;"><label for="ndviSplitPct" style="font-weight:400;">NDVI split (%)</label><input type="number" id="ndviSplitPct" value="10" step="1" min="1" max="45"></div>
+                    <div style="flex:1;"><label for="thermTrimPct" style="font-weight:400;">Thermal trim (%)</label><input type="number" id="thermTrimPct" value="5" step="1" min="0" max="45"></div>
+                </div>
+                <button class="btn btn-ghost btn-small" id="autoEstimateBtn" style="width:100%;">🌡️ Estimate T_wet / T_dry from Image</button>
+                <div class="progress-wrap" id="estimateProgressWrap" style="display:none;">
+                    <div class="progress-track"><div class="progress-fill" id="estimateProgressFill"></div></div>
+                    <div class="progress-label"><span id="estimateProgressText">Scanning pixels...</span><span id="estimateProgressPct">0%</span></div>
+                </div>
+                <div id="autoEstimateStatus" class="alert-box info" style="display:none; margin-top:8px; margin-bottom:0;"></div>
+            </div>
+
+            <button class="btn" id="processBtn" style="margin-top:10px;">⚡ Process Models & Map Layers</button>
+        </div>
+
+        <!-- Analytical Output Workspace -->
+        <div class="workspace-layout">
+            <div class="card" style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="toolbar">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <label style="margin:0; font-weight:700;" for="viewLayerSelect">Layer:</label>
+                        <select id="viewLayerSelect" style="width: 230px; padding:4px;" disabled></select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <label style="margin:0; font-weight:700;" for="bgOpacityRange">Overlay Opacity:</label>
+                        <input type="range" id="bgOpacityRange" min="0" max="100" value="75" style="width:80px; vertical-align:middle;">
+                    </div>
+                    <div class="toggle-group" id="basemapToggle" style="display:none; margin:0; width:auto;">
+                        <button class="toggle-btn active" data-base="satellite">Satellite</button>
+                        <button class="toggle-btn" data-base="street">Street</button>
+                    </div>
+                    <button class="btn btn-success btn-small" id="exportAllBtn" disabled>💾 Export All (.zip)</button>
+                    <div id="statusLabel" style="margin-left:auto; font-size:12px; color:#0369a1; font-weight:700;">Waiting for GeoTIFF file...</div>
+                </div>
+
+                <div class="alert-box" id="metaInfo" style="display:none;"></div>
+
+                <div class="map-shell">
+                    <div id="mapEl"></div>
+                    <canvas id="outputCanvas" style="display:none;"></canvas>
+                    <div id="placeholderText" style="color:#94a3b8; font-size:13px; text-align:center;">
+                        <strong>System Inactive</strong><br>Load orthomosaic map to initialize analytical stacks.
+                    </div>
+                </div>
+
+                <div class="legend" id="legendView" style="display:none;">
+                    <span id="legendMin">-</span>
+                    <div class="gradient-bar" id="legendGradient"></div>
+                    <span id="legendMax">-</span>
+                    <span id="unitLabel" style="margin-left:auto; font-weight:700; color: #0369a1; padding-left: 20px;"></span>
+                </div>
+            </div>
+
+            <!-- Pixel Inspector -->
+            <div class="card" id="inspectorCard">
+                <div class="section-title">Pixel Inspector</div>
+                <div id="inspectorEmpty">Click on the map (or image, if unprojected) to extract values at a point.</div>
+                <div id="inspectorContent" style="display:none;">
+                    <div class="insp-loc" id="inspLoc">-</div>
+                    <div class="insp-sub" id="inspSub">-</div>
+                    <div class="insp-group-title">Raw Bands</div>
+                    <div class="insp-row"><span>Red / NIR</span><b id="inspRGBN">-</b></div>
+                    <div class="insp-row"><span>Canopy Temperature</span><b id="inspTc">-</b></div>
+                    <div class="insp-group-title">ETa Models (mm/d)</div>
+                    <div id="inspEta"></div>
+                    <div class="insp-group-title">CWSI Models (0–1)</div>
+                    <div id="inspCwsi"></div>
+                </div>
+            </div>
+
+            <!-- Dynamic Statistical Summary -->
+            <div class="chart-card" id="chartCardWrapper" style="display: none;">
+                <div class="section-title" id="chartTitleText">Statistical Summary Viewport</div>
+                <div class="chart-container chart-scroll">
+                    <canvas id="boxplotCanvas" width="900" height="400"></canvas>
+                </div>
+            </div>
+
+            <!-- Treatment Comparison -->
+            <div class="chart-card" id="treatmentChartCardWrapper" style="display: none;">
+                <div class="section-title" id="treatmentChartTitleText">Treatment Comparison</div>
+                <div class="chart-container chart-scroll">
+                    <canvas id="treatmentBoxplotCanvas" width="900" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let geoTiffData = { width: 0, height: 0, bands: [], tiePoints: null, pixelScale: null, geoKeys: null,
+        nativeBBox: null, crs: { type: null, epsg: null, proj4def: null }, bounds: null };
+    let engineMode = 'ETa';
+    let georeferenced = false;
+    let pointCounter = 0;
+
+    let map = null, dataOverlay = null, tileSatellite = null, tileStreet = null;
+    let treatmentLayerGroup = null;
+    let treatmentData = {
+        geojson: null,
+        featureBBoxes: [],
+        selectedColumn: null,
+        sampleAssignment: null // { idx: [pixel linear indices], featureIdx: [matched feature index or -1] }
+    };
+    const NDVI_VEG_THRESHOLD = 0.4; // Box-and-whisker (ETa & CWSI) excludes bare soil below this NDVI
+    let currentBasemap = 'satellite';
+
+    let modelBuffers = {
+        ETa: { ensemble: null, ssebi: null, ssebop: null, metrice: null, simsfao: null, ptjpl: null },
+        CWSI: { ensemble: null, empirical: null, theoretical: null }
+    };
+
+    const layersDefinition = {
+        ETa: [
+            { value: "ensemble", text: "Clean ETa Ensemble (Outliers Filtered)" },
+            { value: "ssebi", text: "Model 1: S-SEBI Core (ETa)" },
+            { value: "ssebop", text: "Model 2: SSEBop Core (ETa)" },
+            { value: "metrice", text: "Model 3: eeMETRIC Alpha (ETa)" },
+            { value: "simsfao", text: "Model 4: SIMS / FAO-56 Kc (ETa)" },
+            { value: "ptjpl", text: "Model 5: PT-JPL Canopy (ETa)" }
+        ],
+        CWSI: [
+            { value: "ensemble", text: "Combined CWSI Balance Ensemble" },
+            { value: "empirical", text: "Empirical Baseline (Idso Lower NWSB)" },
+            { value: "theoretical", text: "Theoretical Energy Balance (Jackson)" }
+        ]
+    };
+
+    function fmt(v, d) {
+        if (d === undefined) d = 2;
+        return (v === null || v === undefined || isNaN(v)) ? '-' : Number(v).toFixed(d);
+    }
+
+    // ============================================================
+    // PROGRESS BAR HELPERS (used for upload + auto-estimate)
+    // ============================================================
+    function showProgress(prefix, label) {
+        document.getElementById(prefix + 'ProgressWrap').style.display = 'block';
+        setProgress(prefix, 0, label);
+    }
+    function setProgress(prefix, frac, label) {
+        const pct = Math.max(0, Math.min(100, Math.round(frac * 100)));
+        document.getElementById(prefix + 'ProgressFill').style.width = pct + '%';
+        document.getElementById(prefix + 'ProgressPct').innerText = pct + '%';
+        if (label !== undefined) document.getElementById(prefix + 'ProgressText').innerText = label;
+    }
+    function hideProgress(prefix) {
+        document.getElementById(prefix + 'ProgressWrap').style.display = 'none';
+    }
+    function yieldToUI() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    // ============================================================
+    // AUTO-ESTIMATE T_wet / T_dry FROM SCENE
+    // ============================================================
+    function percentile(sortedArr, p) {
+        if (!sortedArr.length) return null;
+        const idx = Math.min(sortedArr.length - 1, Math.max(0, Math.floor((p / 100) * sortedArr.length)));
+        return sortedArr[idx];
+    }
+
+    document.getElementById('autoEstimateBtn').addEventListener('click', async () => {
+        if (!geoTiffData.bands.length) return alert('Load a GeoTIFF file first.');
+        const { width, height, bands } = geoTiffData;
+        const total = width * height;
+        const rB = bands[parseInt(document.getElementById('redBandSelect').value)];
+        const nB = bands[parseInt(document.getElementById('nirBandSelect').value)];
+        const tB = bands[parseInt(document.getElementById('thermalBandSelect').value)];
+        if (!rB || !nB || !tB) return alert('Red, NIR, and Thermal channels must be assigned first.');
+
+        const ndviSplit = Math.max(1, Math.min(45, parseFloat(document.getElementById('ndviSplitPct').value) || 10));
+        const thermTrim = Math.max(0, Math.min(45, parseFloat(document.getElementById('thermTrimPct').value) || 5));
+
+        const btn = document.getElementById('autoEstimateBtn');
+        btn.disabled = true;
+        document.getElementById('autoEstimateStatus').style.display = 'none';
+        showProgress('estimate', 'Scanning pixels for valid NDVI...');
+
+        try {
+            let ndviVals = [], validIdx = [];
+            const chunkSize = 250000;
+            for (let start = 0; start < total; start += chunkSize) {
+                const end = Math.min(total, start + chunkSize);
+                for (let i = start; i < end; i++) {
+                    const Tc = tB[i];
+                    if (Tc === undefined || isNaN(Tc) || Tc === 0 || Tc < -40 || Tc > 80) continue;
+                    const R = rB[i], NIR = nB[i];
+                    if (NIR + R <= 0) continue;
+                    const ndvi = (NIR - R) / (NIR + R);
+                    if (isNaN(ndvi)) continue;
+                    ndviVals.push(ndvi);
+                    validIdx.push(i);
+                }
+                setProgress('estimate', end / total, `Scanning pixels for valid NDVI... (${end.toLocaleString()} / ${total.toLocaleString()})`);
+                await yieldToUI();
+            }
+
+            if (validIdx.length < 200) {
+                hideProgress('estimate');
+                return alert('Not enough valid (non-masked) pixels to estimate boundary temperatures reliably.');
+            }
+
+            setProgress('estimate', 1, 'Sorting NDVI distribution...');
+            await yieldToUI();
+            const sortedNdvi = ndviVals.slice().sort((a, b) => a - b);
+            const lowCut = percentile(sortedNdvi, ndviSplit);
+            const highCut = percentile(sortedNdvi, 100 - ndviSplit);
+
+            setProgress('estimate', 1, 'Splitting bare/canopy populations...');
+            await yieldToUI();
+            let bareTemps = [], canopyTemps = [];
+            for (let k = 0; k < validIdx.length; k++) {
+                const i = validIdx[k], ndvi = ndviVals[k];
+                if (ndvi <= lowCut) bareTemps.push(tB[i]);
+                else if (ndvi >= highCut) canopyTemps.push(tB[i]);
+            }
+
+            if (bareTemps.length < 20 || canopyTemps.length < 20) {
+                hideProgress('estimate');
+                return alert('Bare-soil or dense-canopy populations are too small in this scene to estimate reliably. Try a larger NDVI split percentage, or set T_wet/T_dry manually.');
+            }
+
+            setProgress('estimate', 1, 'Computing temperature percentiles...');
+            await yieldToUI();
+            bareTemps.sort((a, b) => a - b);
+            canopyTemps.sort((a, b) => a - b);
+
+            const Tdry = percentile(bareTemps, 100 - thermTrim);
+            const Twet = percentile(canopyTemps, thermTrim);
+
+            if (Tdry === null || Twet === null || Tdry <= Twet) {
+                hideProgress('estimate');
+                return alert('Estimated T_dry is not warmer than T_wet — this scene may lack a clear wet/dry contrast (e.g. uniform canopy, no bare soil). Manual entry is recommended.');
+            }
+
+            document.getElementById('tdry').value = Tdry.toFixed(1);
+            document.getElementById('twet').value = Twet.toFixed(1);
+
+            const statusBox = document.getElementById('autoEstimateStatus');
+            statusBox.style.display = 'block';
+            statusBox.innerHTML = `<strong>Estimated from scene:</strong> T_dry = ${Tdry.toFixed(1)}°C (n=${bareTemps.length} bare/sparse px, NDVI ≤ ${lowCut.toFixed(2)}), `
+                + `T_wet = ${Twet.toFixed(1)}°C (n=${canopyTemps.length} dense-canopy px, NDVI ≥ ${highCut.toFixed(2)}). Review before processing — re-run per flight.`;
+
+            setProgress('estimate', 1, 'Done.');
+        } finally {
+            btn.disabled = false;
+            setTimeout(() => hideProgress('estimate'), 600);
+        }
+    });
+
+    // ============================================================
+    // MODE TOGGLE
+    // ============================================================
+    document.getElementById('analysisModeToggle').addEventListener('click', (e) => {
+        if (!e.target.dataset.mode) return;
+        document.querySelectorAll('#analysisModeToggle .toggle-btn').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        engineMode = e.target.dataset.mode;
+
+        rebuildLayerDropdown();
+        if (modelBuffers[engineMode].ensemble !== null) {
+            renderSelectedLayer();
+            generateAnalyticsPlot();
+            renderTreatmentComparison();
+        }
+    });
+
+    document.getElementById('bgOpacityRange').addEventListener('input', () => {
+        const opacity = parseFloat(document.getElementById('bgOpacityRange').value) / 100;
+        if (georeferenced && dataOverlay) dataOverlay.setOpacity(opacity);
+        else if (!georeferenced && modelBuffers[engineMode].ensemble !== null) renderSelectedLayerCanvasFallback();
+    });
+
+    function rebuildLayerDropdown() {
+        const select = document.getElementById('viewLayerSelect');
+        select.innerHTML = '';
+        layersDefinition[engineMode].forEach(layer => {
+            let opt = document.createElement('option');
+            opt.value = layer.value;
+            opt.innerText = layer.text;
+            select.appendChild(opt);
+        });
+        select.value = "ensemble";
+    }
+
+    // ============================================================
+    // GEOREFERENCING
+    // ============================================================
+    function buildUtmProj4(code) {
+        if (code >= 32601 && code <= 32660) {
+            const zone = code - 32600;
+            return `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`;
+        }
+        if (code >= 32701 && code <= 32760) {
+            const zone = code - 32700;
+            return `+proj=utm +zone=${zone} +south +datum=WGS84 +units=m +no_defs`;
+        }
+        return null;
+    }
+
+    function computeGeoreference(image) {
+        geoTiffData.crs = { type: null, epsg: null, proj4def: null };
+        geoTiffData.bounds = null;
+        geoTiffData.nativeBBox = null;
+        try {
+            geoTiffData.nativeBBox = image.getBoundingBox();
+        } catch (e) { return false; }
+
+        let keys = {};
+        try { keys = image.getGeoKeys() || {}; } catch (e) {}
+
+        const bbox = geoTiffData.nativeBBox;
+        const projCode = keys.ProjectedCSTypeGeoKey;
+        const geogCode = keys.GeographicTypeGeoKey;
+
+        try {
+            if (projCode && projCode !== 32767) {
+                const def = buildUtmProj4(projCode);
+                if (def) {
+                    geoTiffData.crs = { type: 'utm', epsg: projCode, proj4def: def };
+                    const sw = proj4(def, 'WGS84', [bbox[0], bbox[1]]);
+                    const ne = proj4(def, 'WGS84', [bbox[2], bbox[3]]);
+                    geoTiffData.bounds = { west: sw[0], south: sw[1], east: ne[0], north: ne[1] };
+                }
+            } else if (geogCode && geogCode !== 32767) {
+                geoTiffData.crs = { type: 'geographic', epsg: 4326, proj4def: null };
+                geoTiffData.bounds = { west: bbox[0], south: bbox[1], east: bbox[2], north: bbox[3] };
+            }
+        } catch (e) { console.warn('Reprojection failed', e); geoTiffData.bounds = null; }
+
+        return geoTiffData.bounds !== null;
+    }
+
+    function setGeoStatus(html, kind) {
+        const box = document.getElementById('geoStatusBox');
+        box.className = 'alert-box' + (kind ? ' ' + kind : '');
+        box.innerHTML = html;
+        box.style.display = 'block';
+    }
+
+    function switchToMapView() {
+        document.getElementById('mapEl').style.display = 'block';
+        document.getElementById('outputCanvas').style.display = 'none';
+        document.getElementById('placeholderText').style.display = 'none';
+        document.getElementById('basemapToggle').style.display = 'flex';
+    }
+
+    function switchToCanvasView() {
+        document.getElementById('mapEl').style.display = 'none';
+        document.getElementById('outputCanvas').style.display = 'block';
+        document.getElementById('placeholderText').style.display = 'none';
+        document.getElementById('basemapToggle').style.display = 'none';
+    }
+
+    // ============================================================
+    // TREATMENT BOUNDARIES (optional shapefile overlay)
+    // ============================================================
+    const shapefileDropzone = document.getElementById('shapefileDropzone');
+    const treatmentInput = document.getElementById('treatmentUpload');
+
+    shapefileDropzone.addEventListener('click', () => treatmentInput.click());
+    shapefileDropzone.addEventListener('dragover', (e) => { e.preventDefault(); shapefileDropzone.classList.add('dragover'); });
+    shapefileDropzone.addEventListener('dragleave', () => shapefileDropzone.classList.remove('dragover'));
+    shapefileDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        shapefileDropzone.classList.remove('dragover');
+        handleTreatmentFiles(e.dataTransfer.files);
+    });
+    treatmentInput.addEventListener('change', (e) => handleTreatmentFiles(e.target.files));
+
+    async function handleTreatmentFiles(fileList) {
+        const files = Array.from(fileList || []);
+        if (!files.length) return;
+        document.getElementById('treatmentStatusBox').style.display = 'none';
+        showProgress('shapefile', 'Reading shapefile parts...');
+        try {
+            const shpFile = files.find(f => /\.shp$/i.test(f.name));
+            const shxFile = files.find(f => /\.shx$/i.test(f.name));
+            const dbfFile = files.find(f => /\.dbf$/i.test(f.name));
+            const prjFile = files.find(f => /\.prj$/i.test(f.name));
+            if (!shpFile) throw new Error('No .shp file found in selection.');
+
+            // Repackage the selected parts into an in-memory zip and hand it to
+            // shpjs's standard zip pathway — this is the code path that correctly
+            // handles .prj reprojection (a hand-rolled parseShp+prj call risks a
+            // silent coordinate offset if the projection isn't applied the same way).
+            setProgress('shapefile', 0.25, 'Packaging shapefile...');
+            await yieldToUI();
+            const baseName = shpFile.name.replace(/\.shp$/i, '');
+            const innerZip = new JSZip();
+            innerZip.file(baseName + '.shp', await shpFile.arrayBuffer());
+            if (shxFile) innerZip.file(baseName + '.shx', await shxFile.arrayBuffer());
+            if (dbfFile) innerZip.file(baseName + '.dbf', await dbfFile.arrayBuffer());
+            if (prjFile) innerZip.file(baseName + '.prj', await prjFile.arrayBuffer());
+            const zipBuffer = await innerZip.generateAsync({ type: 'arraybuffer' });
+
+            setProgress('shapefile', 0.6, 'Parsing shapefile geometry...');
+            await yieldToUI();
+            let geojson = await shp(zipBuffer);
+            if (Array.isArray(geojson)) geojson = geojson[0]; // multiple layers: use the first
+
+            if (!geojson || !geojson.features || !geojson.features.length) {
+                throw new Error('No features found.');
+            }
+
+            setProgress('shapefile', 0.85, 'Indexing polygons...');
+            await yieldToUI();
+
+            treatmentData.geojson = geojson;
+            treatmentData.featureBBoxes = geojson.features.map(f => turf.bbox(f));
+            treatmentData.sampleAssignment = null;
+
+            const propKeys = Object.keys(geojson.features[0].properties || {});
+            const colSelect = document.getElementById('treatmentColumnSelect');
+            colSelect.innerHTML = '';
+            propKeys.forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k; opt.innerText = k;
+                colSelect.appendChild(opt);
+            });
+            treatmentData.selectedColumn = propKeys[0] || null;
+            document.getElementById('treatmentColumnGroup').style.display = propKeys.length ? 'block' : 'none';
+
+            const statusBox = document.getElementById('treatmentStatusBox');
+            statusBox.style.display = 'block';
+            statusBox.innerHTML = `<strong>Shapefile loaded ✓</strong> ${geojson.features.length} treatment polygon(s) found.`;
+            if (!dbfFile) {
+                statusBox.innerHTML += ` No .dbf selected — treatment names may be missing; select the .dbf alongside the .shp for real attribute names.`;
+            }
+            if (!prjFile) {
+                statusBox.innerHTML += ` No .prj selected — coordinates are assumed to already be in WGS84; include the .prj if the overlay looks shifted.`;
+            }
+
+            setProgress('shapefile', 1, 'Done.');
+
+            if (georeferenced) {
+                await runTreatmentSpatialJoin();
+                renderTreatmentPolygonsOnMap();
+                renderTreatmentComparison();
+            } else {
+                statusBox.innerHTML += ` This orthomosaic isn't georeferenced yet — treatment matching will run automatically once a georeferenced TIF is loaded.`;
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Could not read the shapefile. Select the .shp file together with its .dbf, .shx, and .prj — use Ctrl/Cmd-click or Shift-click in the file picker, or drag all of them onto the drop zone at once.');
+        } finally {
+            setTimeout(() => hideProgress('shapefile'), 600);
+        }
+    }
+
+    document.getElementById('treatmentColumnSelect').addEventListener('change', (e) => {
+        treatmentData.selectedColumn = e.target.value;
+        renderTreatmentPolygonsOnMap();
+        renderTreatmentComparison();
+    });
+
+    async function runTreatmentSpatialJoin() {
+        if (!georeferenced || !treatmentData.geojson || !geoTiffData.bands.length) {
+            treatmentData.sampleAssignment = null;
+            return;
+        }
+        const { width, height } = geoTiffData;
+        const total = width * height;
+        const targetSamples = 150000;
+        const sampleStep = total > targetSamples ? Math.floor(total / targetSamples) : 1;
+        const totalSamplesEstimate = Math.ceil(total / sampleStep);
+        const features = treatmentData.geojson.features;
+        const bboxes = treatmentData.featureBBoxes;
+
+        showProgress('treatment', 'Matching pixels to treatment polygons...');
+
+        const sampledIdx = [];
+        const sampledFeatureIdx = [];
+        let processed = 0;
+        const progressEvery = 5000;
+
+        for (let i = 0; i < total; i += sampleStep) {
+            const row = Math.floor(i / width);
+            const col = i % width;
+            const ll = pixelToLatLng(row, col);
+            if (ll) {
+                let matchIdx = -1;
+                const pt = turf.point([ll.lng, ll.lat]);
+                for (let f = 0; f < features.length; f++) {
+                    const bbox = bboxes[f];
+                    if (ll.lng < bbox[0] || ll.lng > bbox[2] || ll.lat < bbox[1] || ll.lat > bbox[3]) continue;
+                    if (turf.booleanPointInPolygon(pt, features[f])) { matchIdx = f; break; }
+                }
+                sampledIdx.push(i);
+                sampledFeatureIdx.push(matchIdx);
+            }
+            processed++;
+            if (processed % progressEvery === 0) {
+                setProgress('treatment', processed / totalSamplesEstimate,
+                    `Matching pixels to treatment polygons... (${processed.toLocaleString()} / ${totalSamplesEstimate.toLocaleString()})`);
+                await yieldToUI();
+            }
+        }
+
+        setProgress('treatment', 1, 'Done.');
+        treatmentData.sampleAssignment = { idx: sampledIdx, featureIdx: sampledFeatureIdx };
+        setTimeout(() => hideProgress('treatment'), 600);
+    }
+
+    function computeStatsForTreatmentGroups(mode, layerKey) {
+        const buffer = modelBuffers[mode][layerKey];
+        if (!buffer || !treatmentData.sampleAssignment || !treatmentData.selectedColumn) return null;
+
+        const { idx, featureIdx } = treatmentData.sampleAssignment;
+        const column = treatmentData.selectedColumn;
+        const features = treatmentData.geojson.features;
+
+        let rB = null, nB = null;
+        if (geoTiffData.bands.length) {
+            rB = geoTiffData.bands[parseInt(document.getElementById('redBandSelect').value)];
+            nB = geoTiffData.bands[parseInt(document.getElementById('nirBandSelect').value)];
+        }
+
+        let groups = {};
+        for (let k = 0; k < idx.length; k++) {
+            const i = idx[k];
+            const val = buffer[i];
+            if (val === -9999 || isNaN(val)) continue;
+            if (rB && nB) {
+                const R = rB[i], NIR = nB[i];
+                if (NIR + R <= 0) continue;
+                const ndvi = (NIR - R) / (NIR + R);
+                if (isNaN(ndvi) || ndvi <= NDVI_VEG_THRESHOLD) continue;
+            }
+            const fIdx = featureIdx[k];
+            if (fIdx === -1) continue;
+            const name = String(features[fIdx].properties[column] ?? `Feature ${fIdx}`);
+            if (!groups[name]) groups[name] = [];
+            groups[name].push(val);
+        }
+
+        let result = {}, globalMin = Infinity, globalMax = -Infinity;
+        Object.keys(groups).forEach(name => {
+            const arr = groups[name].slice().sort((a, b) => a - b);
+            if (!arr.length) return;
+            const min = arr[0], q1 = arr[Math.floor(arr.length * 0.25)], median = arr[Math.floor(arr.length * 0.5)],
+                  q3 = arr[Math.floor(arr.length * 0.75)], max = arr[arr.length - 1];
+            result[name] = { min, q1, median, q3, max, n: arr.length };
+            if (min < globalMin) globalMin = min;
+            if (max > globalMax) globalMax = max;
+        });
+
+        return { groups: result, globalMin, globalMax };
+    }
+
+    function renderTreatmentPolygonsOnMap() {
+        if (!map || !treatmentData.geojson) return;
+        if (treatmentLayerGroup) { map.removeLayer(treatmentLayerGroup); treatmentLayerGroup = null; }
+        const column = treatmentData.selectedColumn;
+        treatmentLayerGroup = L.geoJSON(treatmentData.geojson, {
+            style: { color: '#f97316', weight: 2, fillOpacity: 0.04 },
+            onEachFeature: (feature, layer) => {
+                const name = column ? String(feature.properties[column] ?? '') : '';
+                if (name) layer.bindTooltip(name, { permanent: true, direction: 'center', className: 'treatment-label' });
+            }
+        }).addTo(map);
+    }
+
+    function renderTreatmentComparison() {
+        const wrapper = document.getElementById('treatmentChartCardWrapper');
+        if (!treatmentData.sampleAssignment || !treatmentData.selectedColumn) { wrapper.style.display = 'none'; return; }
+
+        const layerKey = document.getElementById('viewLayerSelect').value;
+        if (!layerKey || !modelBuffers[engineMode][layerKey]) { wrapper.style.display = 'none'; return; }
+
+        const stats = computeStatsForTreatmentGroups(engineMode, layerKey);
+        if (!stats || Object.keys(stats.groups).length === 0) { wrapper.style.display = 'none'; return; }
+
+        wrapper.style.display = 'block';
+        const layerLabel = (layersDefinition[engineMode].find(l => l.value === layerKey) || {}).text || layerKey;
+        document.getElementById('treatmentChartTitleText').innerText =
+            `Treatment Comparison — ${layerLabel} (NDVI > ${NDVI_VEG_THRESHOLD})`;
+
+        const names = Object.keys(stats.groups).sort();
+        const canvas = document.getElementById('treatmentBoxplotCanvas');
+        canvas.width = Math.max(700, names.length * 110);
+
+        const items = names.map(name => ({ key: name, label: name, metrics: stats.groups[name] }));
+        const unit = engineMode === 'ETa' ? ' mm/d' : '';
+        drawBoxplotChart(canvas, items, unit, () => false);
+    }
+
+    // ============================================================
+    // FILE LOADING
+    // ============================================================
+    function readFileWithProgress(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    setProgress('upload', (e.loaded / e.total) * 0.6,
+                        `Reading file... (${(e.loaded / 1e6).toFixed(1)} / ${(e.total / 1e6).toFixed(1)} MB)`);
+                }
+            };
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error || new Error('File read failed'));
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    document.getElementById('tifUpload').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('statusLabel').innerText = "Reading file...";
+        showProgress('upload', `Reading file... (0.0 / ${(file.size / 1e6).toFixed(1)} MB)`);
+        try {
+            const buffer = await readFileWithProgress(file);
+
+            setProgress('upload', 0.65, 'Parsing GeoTIFF structure...');
+            await yieldToUI();
+            const tiff = await GeoTIFF.fromArrayBuffer(buffer);
+            const image = await tiff.getImage();
+
+            geoTiffData.width = image.getWidth();
+            geoTiffData.height = image.getHeight();
+            geoTiffData.tiePoints = image.fileDirectory.ModelTiepoint;
+            geoTiffData.pixelScale = image.fileDirectory.ModelPixelScale;
+            geoTiffData.geoKeys = image.fileDirectory.GeoKeyDirectory;
+
+            const samples = image.getSamplesPerPixel();
+
+            setProgress('upload', 0.75, 'Reading raster bands...');
+            await yieldToUI();
+            const rasters = await image.readRasters();
+
+            geoTiffData.bands = [];
+            if (rasters.length !== undefined) {
+                for (let b = 0; b < samples; b++) geoTiffData.bands.push(rasters[b]);
+            } else {
+                geoTiffData.bands.push(rasters);
+            }
+
+            setProgress('upload', 0.92, 'Populating channel selectors...');
+            await yieldToUI();
+
+            const selects = ['redBandSelect', 'nirBandSelect', 'thermalBandSelect'];
+            selects.forEach(id => {
+                const select = document.getElementById(id); select.innerHTML = '';
+                for (let i = 0; i < samples; i++) {
+                    let opt = document.createElement('option'); opt.value = i; opt.innerText = `Band Channel ${i+1}`;
+                    select.appendChild(opt);
+                }
+            });
+
+            if (samples >= 3) document.getElementById('redBandSelect').value = 2;
+            else if (samples >= 1) document.getElementById('redBandSelect').value = 0;
+            if (samples >= 5) document.getElementById('nirBandSelect').value = 4;
+            if (samples >= 6) document.getElementById('thermalBandSelect').value = 5;
+
+            document.getElementById('bandMappingContainer').style.display = 'block';
+            document.getElementById('metaInfo').style.display = 'block';
+            document.getElementById('metaInfo').innerHTML = `<strong>Data Connected.</strong> Orthomosaic Matrix: ${geoTiffData.width} x ${geoTiffData.height} | Channels: ${samples}. Adjust channel configurations and execute calculations.`;
+
+            // Georeferencing
+            georeferenced = computeGeoreference(image);
+            const hasTiepoints = !!(geoTiffData.tiePoints && geoTiffData.pixelScale);
+
+            if (georeferenced) {
+                const crsLabel = geoTiffData.crs.type === 'utm' ? `UTM EPSG:${geoTiffData.crs.epsg}` : 'Geographic WGS84';
+                setGeoStatus(`<strong>Georeferenced ✓</strong> Detected CRS: ${crsLabel}. Satellite/street basemap and map-click pixel extraction are active.`, 'info');
+                switchToMapView();
+                initMap();
+                if (treatmentData.geojson) {
+                    await runTreatmentSpatialJoin();
+                    renderTreatmentPolygonsOnMap();
+                }
+            } else if (hasTiepoints) {
+                setGeoStatus(`<strong>CRS not auto-detected.</strong> Tiepoints are present but the projection code wasn't recognized (only UTM WGS84 zones are auto-detected). Showing local pixel view instead.`, 'warn');
+                switchToCanvasView();
+            } else {
+                setGeoStatus(`<strong>No coordinate reference found.</strong> This file has no embedded georeferencing — basemap is unavailable. Showing local pixel view instead.`, 'warn');
+                switchToCanvasView();
+            }
+
+            setProgress('upload', 1, 'Done.');
+            document.getElementById('statusLabel').innerText = "GeoTIFF parsed.";
+            rebuildLayerDropdown();
+        } catch (err) {
+            console.error(err);
+            document.getElementById('statusLabel').innerText = "Parsing error.";
+            alert("File interpretation issue. Verify that your dataset meets standard GeoTIFF layout standards.");
+        } finally {
+            setTimeout(() => hideProgress('upload'), 600);
+        }
+    });
+
+    // ============================================================
+    // MODEL PROCESSING (unchanged core science)
+    // ============================================================
+    document.getElementById('processBtn').addEventListener('click', () => {
+        if (!geoTiffData.bands.length) return alert("Please select and load a GeoTIFF file first.");
+        document.getElementById('statusLabel').innerText = "Processing computing layers...";
+
+        const { width, height, bands } = geoTiffData;
+        const totalPixels = width * height;
+
+        for (let m in modelBuffers.ETa) modelBuffers.ETa[m] = new Float32Array(totalPixels);
+        for (let m in modelBuffers.CWSI) modelBuffers.CWSI[m] = new Float32Array(totalPixels);
+
+        const rB = bands[parseInt(document.getElementById('redBandSelect').value)];
+        const nB = bands[parseInt(document.getElementById('nirBandSelect').value)];
+        const tB = bands[parseInt(document.getElementById('thermalBandSelect').value)];
+
+        const ETo = parseFloat(document.getElementById('eto').value);
+        const Twet = parseFloat(document.getElementById('twet').value);
+        const Tdry = parseFloat(document.getElementById('tdry').value);
+        const Tair = parseFloat(document.getElementById('tair').value);
+        const dT = Tdry - Twet;
+
+        for (let i = 0; i < totalPixels; i++) {
+            const R = rB ? rB[i] : 0;
+            const NIR = nB ? nB[i] : 0;
+            const Tc = tB ? tB[i] : NaN;
+
+            if (Tc === undefined || isNaN(Tc) || Tc === 0 || Tc < -40 || Tc > 80) {
+                for (let key in modelBuffers.ETa) modelBuffers.ETa[key][i] = -9999;
+                for (let key in modelBuffers.CWSI) modelBuffers.CWSI[key][i] = -9999;
+                continue;
+            }
+
+            const ndvi = (NIR + R > 0) ? (NIR - R) / (NIR + R) : 0;
+
+            // ETa SUITE
+            const efSsebi = (Tdry - Tc) / (dT + 1e-6);
+            const etaSsebi = Math.max(0, Math.min(1.5, efSsebi)) * ETo;
+            modelBuffers.ETa.ssebi[i] = etaSsebi;
+
+            const Tcorr = Tair + 2.0;
+            const efSsebop = 1.0 - ((Tc - Tcorr) / (dT + 1e-6));
+            const etaSsebop = Math.max(0, Math.min(1.5, efSsebop)) * ETo;
+            modelBuffers.ETa.ssebop[i] = etaSsebop;
+
+            const efMetric = (Tdry - Tc) / (Tdry - Tair + 1e-6);
+            const etaMetric = Math.max(0, Math.min(1.5, efMetric)) * ETo * 1.05;
+            modelBuffers.ETa.metrice[i] = etaMetric;
+
+            let KcVal = 1.25 * ndvi + 0.1;
+            KcVal = Math.max(0.05, Math.min(1.3, KcVal));
+            const etaSims = KcVal * ETo;
+            modelBuffers.ETa.simsfao[i] = etaSims;
+
+            const sCurve = ndvi > 0.1 ? Math.min(1, Math.pow(ndvi, 2)) : 0.05;
+            const etaPtJpl = sCurve * 1.26 * (ETo * 0.75);
+            modelBuffers.ETa.ptjpl[i] = etaPtJpl;
+
+            let etaArray = [etaSsebi, etaSsebop, etaMetric, etaSims, etaPtJpl].sort((a, b) => a - b);
+            const cleanEtEnsemble = (etaArray[1] + etaArray[2] + etaArray[3]) / 3;
+            modelBuffers.ETa.ensemble[i] = cleanEtEnsemble;
+
+            // CWSI SUITE
+            let cwsiEmpirical = (Tc - Tair - (1.5 - 1.8 * 2.0)) / (5.0 - (1.5 - 1.8 * 2.0));
+            cwsiEmpirical = Math.max(0, Math.min(1, cwsiEmpirical));
+            modelBuffers.CWSI.empirical[i] = cwsiEmpirical;
+
+            let cwsiTheoretical = (Tc - Twet) / (dT + 1e-6);
+            cwsiTheoretical = Math.max(0, Math.min(1, cwsiTheoretical));
+            modelBuffers.CWSI.theoretical[i] = cwsiTheoretical;
+
+            modelBuffers.CWSI.ensemble[i] = (cwsiEmpirical * 0.5) + (cwsiTheoretical * 0.5);
+        }
+
+        document.getElementById('viewLayerSelect').disabled = false;
+        renderSelectedLayer();
+        generateAnalyticsPlot();
+        renderTreatmentComparison();
+    });
+
+    document.getElementById('viewLayerSelect').addEventListener('change', () => {
+        renderSelectedLayer();
+        renderTreatmentComparison();
+    });
+
+    function jetColorMap(val) {
+        const r = Math.max(0, Math.min(255, Math.floor(255 * (Math.max(0, Math.min(1, 2 - Math.abs(4 * val - 1.5)))))));
+        const g = Math.max(0, Math.min(255, Math.floor(255 * (Math.max(0, Math.min(1, 2 - Math.abs(4 * val - 0.5)))))));
+        const b = Math.max(0, Math.min(255, Math.floor(255 * (Math.max(0, Math.min(1, 2 - Math.abs(4 * val + 0.5)))))));
+        return [r, g, b];
+    }
+
+    // ============================================================
+    // RENDERING — dispatch to map or canvas fallback
+    // ============================================================
+    function renderSelectedLayer() {
+        if (georeferenced) renderSelectedLayerMap();
+        else renderSelectedLayerCanvasFallback();
+    }
+
+    function computeOverlayCanvas() {
+        const layerKey = document.getElementById('viewLayerSelect').value;
+        const currentBuffer = modelBuffers[engineMode][layerKey];
+        if (!currentBuffer) return null;
+
+        const { width, height } = geoTiffData;
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        const imgData = ctx.createImageData(width, height);
+
+        let minVal = Infinity, maxVal = -Infinity;
+        for (let i = 0; i < currentBuffer.length; i++) {
+            if (currentBuffer[i] === -9999) continue;
+            if (currentBuffer[i] < minVal) minVal = currentBuffer[i];
+            if (currentBuffer[i] > maxVal) maxVal = currentBuffer[i];
+        }
+        if (minVal === Infinity) { minVal = 0; maxVal = 1; }
+
+        for (let i = 0; i < currentBuffer.length; i++) {
+            const val = currentBuffer[i];
+            const pIdx = i * 4;
+            if (val === -9999) {
+                imgData.data[pIdx + 3] = 0; // transparent -> basemap shows through
+                continue;
+            }
+            const norm = (maxVal === minVal) ? 0 : (val - minVal) / (maxVal - minVal);
+            const rgb = jetColorMap(engineMode === 'CWSI' ? norm : (1 - norm));
+            imgData.data[pIdx] = rgb[0]; imgData.data[pIdx + 1] = rgb[1]; imgData.data[pIdx + 2] = rgb[2]; imgData.data[pIdx + 3] = 255;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        return { canvas, minVal, maxVal, layerKey };
+    }
+
+    function updateLegend(minVal, maxVal, layerKey) {
+        const unit = engineMode === 'ETa' ? 'mm/d' : 'Index';
+        document.getElementById('legendMin').innerText = `${minVal.toFixed(2)} ${unit}`;
+        document.getElementById('legendMax').innerText = `${maxVal.toFixed(2)} ${unit}`;
+        const gradBar = document.getElementById('legendGradient');
+        if (engineMode === 'CWSI') gradBar.style.background = 'linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)';
+        else gradBar.style.background = 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff)';
+        document.getElementById('unitLabel').innerText = `Active Pipeline [${engineMode}]: ${layerKey.toUpperCase()}`;
+        document.getElementById('legendView').style.display = 'flex';
+    }
+
+    // ---- Map (georeferenced) path ----
+    function initMap() {
+        if (map) { map.remove(); map = null; dataOverlay = null; }
+        map = L.map('mapEl', { zoomControl: true, attributionControl: true });
+
+        tileSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri', maxZoom: 21
+        });
+        tileStreet = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+        });
+
+        const b = geoTiffData.bounds;
+        const leafletBounds = [[b.south, b.west], [b.north, b.east]];
+        map.fitBounds(leafletBounds);
+
+        setBasemap(currentBasemap);
+        map.on('click', onMapClick);
+    }
+
+    function setBasemap(key) {
+        currentBasemap = key;
+        [tileSatellite, tileStreet].forEach(l => { if (l && map.hasLayer(l)) map.removeLayer(l); });
+
+        if (key === 'satellite') tileSatellite.addTo(map);
+        else if (key === 'street') tileStreet.addTo(map);
+        if (dataOverlay) dataOverlay.bringToFront();
+        document.querySelectorAll('#basemapToggle .toggle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.base === key));
+    }
+
+    document.getElementById('basemapToggle').addEventListener('click', (e) => {
+        if (!e.target.dataset.base || !map) return;
+        setBasemap(e.target.dataset.base);
+    });
+
+    function renderSelectedLayerMap() {
+        const result = computeOverlayCanvas();
+        if (!result) return;
+        const b = geoTiffData.bounds;
+        const url = result.canvas.toDataURL('image/png');
+        const opacity = parseFloat(document.getElementById('bgOpacityRange').value) / 100;
+        if (dataOverlay) map.removeLayer(dataOverlay);
+        dataOverlay = L.imageOverlay(url, [[b.south, b.west], [b.north, b.east]], { opacity });
+        dataOverlay.addTo(map);
+        updateLegend(result.minVal, result.maxVal, result.layerKey);
+        document.getElementById('exportAllBtn').disabled = false;
+        document.getElementById('statusLabel').innerText = 'Layer drawn complete.';
+    }
+
+    function onMapClick(e) {
+        if (!geoTiffData.bands.length) return;
+        const px = latLngToPixel(e.latlng.lat, e.latlng.lng);
+        if (!px) { document.getElementById('statusLabel').innerText = 'Clicked outside raster extent.'; return; }
+        handlePixelExtraction(px.row, px.col, e.latlng.lat, e.latlng.lng);
+    }
+
+    function latLngToPixel(lat, lng) {
+        let X, Y;
+        if (geoTiffData.crs.type === 'utm') {
+            const p = proj4('WGS84', geoTiffData.crs.proj4def, [lng, lat]);
+            X = p[0]; Y = p[1];
+        } else if (geoTiffData.crs.type === 'geographic') {
+            X = lng; Y = lat;
+        } else return null;
+
+        const tp = geoTiffData.tiePoints, ps = geoTiffData.pixelScale;
+        if (!tp || !ps) return null;
+        const X0 = tp[3], Y0 = tp[4];
+        const scaleX = ps[0], scaleY = ps[1];
+        // tiepoint gives the upper-left CORNER of pixel (0,0); subtract half a pixel
+        // so row/col land on the pixel that actually contains the point (pixel center convention).
+        const col = Math.floor((X - X0) / scaleX);
+        const row = Math.floor((Y0 - Y) / scaleY);
+        if (col < 0 || col >= geoTiffData.width || row < 0 || row >= geoTiffData.height) return null;
+        return { row, col };
+    }
+
+    function pixelToLatLng(row, col) {
+        const tp = geoTiffData.tiePoints, ps = geoTiffData.pixelScale;
+        if (!tp || !ps) return null;
+        const X0 = tp[3], Y0 = tp[4];
+        const scaleX = ps[0], scaleY = ps[1];
+        // Sample the pixel CENTER (+0.5), not its corner, to match how the pixel's
+        // value is treated everywhere else (avoids a systematic half-pixel offset).
+        const X = X0 + (col + 0.5) * scaleX;
+        const Y = Y0 - (row + 0.5) * scaleY;
+
+        let lat, lng;
+        if (geoTiffData.crs.type === 'utm') {
+            const p = proj4(geoTiffData.crs.proj4def, 'WGS84', [X, Y]);
+            lng = p[0]; lat = p[1];
+        } else if (geoTiffData.crs.type === 'geographic') {
+            lng = X; lat = Y;
+        } else return null;
+        return { lat, lng };
+    }
+
+    // ---- Canvas (non-georeferenced) fallback path ----
+    function renderSelectedLayerCanvasFallback() {
+        const layerKey = document.getElementById('viewLayerSelect').value;
+        const currentBuffer = modelBuffers[engineMode][layerKey];
+        if (!currentBuffer) return;
+
+        const { width, height } = geoTiffData;
+        const canvas = document.getElementById('outputCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = width; canvas.height = height;
+
+        const imgData = ctx.createImageData(width, height);
+        const opacitySlider = parseFloat(document.getElementById('bgOpacityRange').value) / 100;
+
+        let minVal = Infinity, maxVal = -Infinity;
+        for (let i = 0; i < currentBuffer.length; i++) {
+            if (currentBuffer[i] === -9999) continue;
+            if (currentBuffer[i] < minVal) minVal = currentBuffer[i];
+            if (currentBuffer[i] > maxVal) maxVal = currentBuffer[i];
+        }
+        if (minVal === Infinity) { minVal = 0; maxVal = 1; }
+
+        const bgR = 15, bgG = 23, bgB = 42; // neutral slate background (no visible imagery without a basemap)
+
+        for (let i = 0; i < currentBuffer.length; i++) {
+            const val = currentBuffer[i];
+            const pIdx = i * 4;
+
+            if (val === -9999) {
+                imgData.data[pIdx] = bgR; imgData.data[pIdx + 1] = bgG; imgData.data[pIdx + 2] = bgB;
+                imgData.data[pIdx + 3] = 255;
+                continue;
+            }
+            const norm = (maxVal === minVal) ? 0 : (val - minVal) / (maxVal - minVal);
+            const overlayRgb = jetColorMap(engineMode === 'CWSI' ? norm : (1 - norm));
+            imgData.data[pIdx] = Math.floor(overlayRgb[0] * opacitySlider + bgR * (1 - opacitySlider));
+            imgData.data[pIdx + 1] = Math.floor(overlayRgb[1] * opacitySlider + bgG * (1 - opacitySlider));
+            imgData.data[pIdx + 2] = Math.floor(overlayRgb[2] * opacitySlider + bgB * (1 - opacitySlider));
+            imgData.data[pIdx + 3] = 255;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        updateLegend(minVal, maxVal, layerKey);
+        document.getElementById('exportAllBtn').disabled = false;
+        document.getElementById('statusLabel').innerText = 'Layer drawn complete.';
+    }
+
+    document.getElementById('outputCanvas').addEventListener('click', (e) => {
+        if (georeferenced || !geoTiffData.bands.length) return;
+        const canvas = e.target;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const col = Math.floor((e.clientX - rect.left) * scaleX);
+        const row = Math.floor((e.clientY - rect.top) * scaleY);
+        if (col < 0 || col >= geoTiffData.width || row < 0 || row >= geoTiffData.height) return;
+        handlePixelExtraction(row, col, null, null);
+    });
+
+    // ============================================================
+    // PIXEL VALUE EXTRACTION
+    // ============================================================
+    function handlePixelExtraction(row, col, lat, lng) {
+        const idx = row * geoTiffData.width + col;
+        const { bands } = geoTiffData;
+        const rB = bands[parseInt(document.getElementById('redBandSelect').value)];
+        const nB = bands[parseInt(document.getElementById('nirBandSelect').value)];
+        const tB = bands[parseInt(document.getElementById('thermalBandSelect').value)];
+
+        pointCounter++;
+        const point = {
+            id: pointCounter, row, col, lat, lng,
+            R: rB ? rB[idx] : null, NIR: nB ? nB[idx] : null,
+            Tc: tB ? tB[idx] : null, eta: {}, cwsi: {}
+        };
+        layersDefinition.ETa.forEach(l => {
+            const buf = modelBuffers.ETa[l.value];
+            point.eta[l.value] = buf ? (buf[idx] === -9999 ? null : buf[idx]) : null;
+        });
+        layersDefinition.CWSI.forEach(l => {
+            const buf = modelBuffers.CWSI[l.value];
+            point.cwsi[l.value] = buf ? (buf[idx] === -9999 ? null : buf[idx]) : null;
+        });
+
+        updateInspectorPanel(point);
+
+        if (map && lat !== null) {
+            L.popup({ maxWidth: 260 })
+                .setLatLng([lat, lng])
+                .setContent(`<b>Point #${point.id}</b><br>ETa Ensemble: ${fmt(point.eta.ensemble)} mm/d<br>CWSI Ensemble: ${fmt(point.cwsi.ensemble)}<br>Canopy T: ${fmt(point.Tc, 1)} &deg;C`)
+                .openOn(map);
+        }
+    }
+
+    function updateInspectorPanel(point) {
+        document.getElementById('inspectorEmpty').style.display = 'none';
+        document.getElementById('inspectorContent').style.display = 'block';
+        document.getElementById('inspLoc').innerText = point.lat !== null
+            ? `${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`
+            : `Row ${point.row}, Col ${point.col}`;
+        document.getElementById('inspSub').innerText = `Point #${point.id}${point.lat !== null ? ' · Row ' + point.row + ', Col ' + point.col : ''}`;
+        document.getElementById('inspRGBN').innerText = `R:${fmt(point.R, 0)} NIR:${fmt(point.NIR, 0)}`;
+        document.getElementById('inspTc').innerText = fmt(point.Tc, 1) + ' °C';
+
+        document.getElementById('inspEta').innerHTML = layersDefinition.ETa.map(l =>
+            `<div class="insp-row"><span>${l.text}</span><b>${fmt(point.eta[l.value])}</b></div>`).join('');
+        document.getElementById('inspCwsi').innerHTML = layersDefinition.CWSI.map(l =>
+            `<div class="insp-row"><span>${l.text}</span><b>${fmt(point.cwsi[l.value])}</b></div>`).join('');
+    }
+
+    // ============================================================
+    // BOXPLOT SUMMARY
+    // ============================================================
+    function computeBoxplotStats(mode) {
+        const activeModelsList = layersDefinition[mode];
+        const totalPixels = geoTiffData.width * geoTiffData.height;
+        const sampleStep = totalPixels > 500000 ? Math.floor(totalPixels / 100000) : 1;
+
+        // Both ETa and CWSI exclude bare soil; requires Red/NIR bands to compute NDVI per pixel.
+        let rB = null, nB = null;
+        if ((mode === 'ETa' || mode === 'CWSI') && geoTiffData.bands.length) {
+            rB = geoTiffData.bands[parseInt(document.getElementById('redBandSelect').value)];
+            nB = geoTiffData.bands[parseInt(document.getElementById('nirBandSelect').value)];
+        }
+
+        let globalMin = Infinity, globalMax = -Infinity;
+        let metrics = {};
+
+        activeModelsList.forEach(m => {
+            let buffer = modelBuffers[mode][m.value];
+            if (!buffer) return;
+            let sampleArr = [];
+            for (let i = 0; i < buffer.length; i += sampleStep) {
+                if (buffer[i] === -9999 || isNaN(buffer[i])) continue;
+                if (rB && nB) {
+                    const R = rB[i], NIR = nB[i];
+                    if (NIR + R <= 0) continue;
+                    const ndvi = (NIR - R) / (NIR + R);
+                    if (isNaN(ndvi) || ndvi <= NDVI_VEG_THRESHOLD) continue; // exclude bare soil
+                }
+                sampleArr.push(buffer[i]);
+            }
+            sampleArr.sort((a, b) => a - b);
+            if (sampleArr.length === 0) return;
+
+            const min = sampleArr[0];
+            const q1 = sampleArr[Math.floor(sampleArr.length * 0.25)];
+            const median = sampleArr[Math.floor(sampleArr.length * 0.50)];
+            const q3 = sampleArr[Math.floor(sampleArr.length * 0.75)];
+            const max = sampleArr[sampleArr.length - 1];
+
+            metrics[m.value] = { min, q1, median, q3, max, n: sampleArr.length };
+            if (min < globalMin) globalMin = min;
+            if (max > globalMax) globalMax = max;
+        });
+
+        return { metrics, globalMin, globalMax };
+    }
+
+    function drawBoxplotChart(canvas, items, labelUnit, highlightPredicate) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let globalMin = Infinity, globalMax = -Infinity;
+        items.forEach(it => {
+            if (!it.metrics) return;
+            if (it.metrics.min < globalMin) globalMin = it.metrics.min;
+            if (it.metrics.max > globalMax) globalMax = it.metrics.max;
+        });
+        if (globalMin === Infinity) return;
+
+        const pad = engineMode === 'ETa' ? 0.4 : 0.05;
+        globalMin = Math.max(0, globalMin - pad);
+        globalMax = globalMax + pad;
+
+        const paddingLeft = 70, paddingRight = 30, paddingTop = 40, paddingBottom = 50;
+        const graphWidth = canvas.width - paddingLeft - paddingRight;
+        const graphHeight = canvas.height - paddingTop - paddingBottom;
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#475569';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+
+        const yTicks = 6;
+        for (let i = 0; i <= yTicks; i++) {
+            const val = globalMin + (globalMax - globalMin) * (i / yTicks);
+            const y = canvas.height - paddingBottom - (i / yTicks) * graphHeight;
+            ctx.beginPath(); ctx.moveTo(paddingLeft, y); ctx.lineTo(canvas.width - paddingRight, y); ctx.stroke();
+            ctx.fillText(val.toFixed(2) + labelUnit, paddingLeft - 10, y + 4);
+        }
+
+        const colWidth = graphWidth / items.length;
+        ctx.textAlign = 'center';
+
+        items.forEach((it, index) => {
+            const metrics = it.metrics;
+            if (!metrics) return;
+            const highlighted = highlightPredicate ? highlightPredicate(it.key) : false;
+
+            const xCenter = paddingLeft + (index * colWidth) + (colWidth / 2);
+            const getCanvasY = (val) => canvas.height - paddingBottom - ((val - globalMin) / (globalMax - globalMin)) * graphHeight;
+
+            const yMin = getCanvasY(metrics.min);
+            const yQ1 = getCanvasY(metrics.q1);
+            const yMedian = getCanvasY(metrics.median);
+            const yQ3 = getCanvasY(metrics.q3);
+            const yMax = getCanvasY(metrics.max);
+
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(xCenter, yMin); ctx.lineTo(xCenter, yMax); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(xCenter - 12, yMin); ctx.lineTo(xCenter + 12, yMin); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(xCenter - 12, yMax); ctx.lineTo(xCenter + 12, yMax); ctx.stroke();
+
+            ctx.fillStyle = highlighted ? '#bae6fd' : '#f1f5f9';
+            ctx.strokeStyle = highlighted ? '#0284c7' : '#334155';
+            ctx.lineWidth = 2;
+            const boxWidth = Math.min(48, colWidth * 0.55);
+            ctx.fillRect(xCenter - boxWidth / 2, yQ3, boxWidth, yQ1 - yQ3);
+            ctx.strokeRect(xCenter - boxWidth / 2, yQ3, boxWidth, yQ1 - yQ3);
+
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(xCenter - boxWidth / 2, yMedian); ctx.lineTo(xCenter + boxWidth / 2, yMedian); ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = highlighted ? 'bold 11px sans-serif' : '11px sans-serif';
+            ctx.fillText(it.label, xCenter, canvas.height - paddingBottom + 20);
+        });
+    }
+
+    function generateAnalyticsPlot() {
+        document.getElementById('chartCardWrapper').style.display = 'block';
+        document.getElementById('chartTitleText').innerText =
+            `Statistical Model Summary Distribution Plot (${engineMode}, NDVI > ${NDVI_VEG_THRESHOLD})`;
+
+        const activeModelsList = layersDefinition[engineMode];
+        const stats = computeBoxplotStats(engineMode);
+        const processedMetrics = stats.metrics;
+
+        const canvas = document.getElementById('boxplotCanvas');
+        const items = activeModelsList.map(m => ({ key: m.value, label: m.value.toUpperCase(), metrics: processedMetrics[m.value] }));
+        const unit = engineMode === 'ETa' ? " mm/d" : "";
+        drawBoxplotChart(canvas, items, unit, (key) => key === 'ensemble');
+    }
+
+    // ============================================================
+    // EXPORT — all ETa & CWSI layers as GeoTIFF + boxplot data as
+    // XLSX, bundled into a single .zip
+    // ============================================================
+    document.getElementById('exportAllBtn').addEventListener('click', async () => {
+        if (!modelBuffers.ETa.ensemble || !modelBuffers.CWSI.ensemble) {
+            return alert('Process the models first.');
+        }
+        document.getElementById('statusLabel').innerText = "Bundling export package...";
+        try {
+            const zip = new JSZip();
+            const tifMetadataBase = {
+                width: geoTiffData.width, height: geoTiffData.height,
+                BitsPerSample: [32], SampleFormat: [3],
+                SamplesPerPixel: 1, PhotometricInterpretation: 1, Orientation: 1
+            };
+            if (geoTiffData.tiePoints) tifMetadataBase.ModelTiepoint = geoTiffData.tiePoints;
+            if (geoTiffData.pixelScale) tifMetadataBase.ModelPixelScale = geoTiffData.pixelScale;
+            if (geoTiffData.geoKeys) tifMetadataBase.GeoKeyDirectory = geoTiffData.geoKeys;
+
+            // --- GeoTIFF layers: all ETa models + all CWSI models ---
+            for (const key in modelBuffers.ETa) {
+                const buf = modelBuffers.ETa[key];
+                if (!buf) continue;
+                const arrayBuffer = await GeoTIFF.writeArrayBuffer(buf, tifMetadataBase);
+                zip.file(`GeoTIFF/ETa_${key}.tif`, arrayBuffer);
+            }
+            for (const key in modelBuffers.CWSI) {
+                const buf = modelBuffers.CWSI[key];
+                if (!buf) continue;
+                const arrayBuffer = await GeoTIFF.writeArrayBuffer(buf, tifMetadataBase);
+                zip.file(`GeoTIFF/CWSI_${key}.tif`, arrayBuffer);
+            }
+
+            // --- Box-and-whisker summary statistics as XLSX ---
+            const etaStats = computeBoxplotStats('ETa');
+            const cwsiStats = computeBoxplotStats('CWSI');
+
+            const buildRows = (mode, stats) => layersDefinition[mode].map(l => {
+                const m = stats.metrics[l.value];
+                return {
+                    Layer: l.text,
+                    Key: l.value,
+                    Filter: `NDVI > ${NDVI_VEG_THRESHOLD} (bare soil excluded)`,
+                    'Sampled N': m ? m.n : 0,
+                    Min: m ? m.min : '',
+                    Q1: m ? m.q1 : '',
+                    Median: m ? m.median : '',
+                    Q3: m ? m.q3 : '',
+                    Max: m ? m.max : ''
+                };
+            });
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(buildRows('ETa', etaStats)), 'ETa_Boxplot_Data');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(buildRows('CWSI', cwsiStats)), 'CWSI_Boxplot_Data');
+
+            // --- Per-treatment comparison, if a shapefile + column are loaded ---
+            if (treatmentData.sampleAssignment && treatmentData.selectedColumn) {
+                let treatmentRows = [];
+                ['ETa', 'CWSI'].forEach(mode => {
+                    layersDefinition[mode].forEach(l => {
+                        const tStats = computeStatsForTreatmentGroups(mode, l.value);
+                        if (!tStats) return;
+                        Object.keys(tStats.groups).forEach(name => {
+                            const m = tStats.groups[name];
+                            treatmentRows.push({
+                                Mode: mode, Layer: l.text, Key: l.value, Treatment: name,
+                                Filter: `NDVI > ${NDVI_VEG_THRESHOLD} (bare soil excluded)`,
+                                'Sampled N': m.n, Min: m.min, Q1: m.q1, Median: m.median, Q3: m.q3, Max: m.max
+                            });
+                        });
+                    });
+                });
+                if (treatmentRows.length) {
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(treatmentRows), 'Treatment_Comparison');
+                }
+                zip.file('treatment_boundaries.geojson', JSON.stringify(treatmentData.geojson));
+            }
+
+            const xlsxArrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            zip.file('boxplot_summary_statistics.xlsx', xlsxArrayBuffer);
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = 'uav_eta_cwsi_export.zip';
+            link.click();
+            document.getElementById('statusLabel').innerText = "Export complete.";
+        } catch (e) {
+            console.error(e);
+            alert("Export failed. See console for details.");
+        }
+    });
+</script>
+</body>
+</html>
