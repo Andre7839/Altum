@@ -25,7 +25,8 @@
   header p{margin:2px 0 0;font-size:12.5px;color:var(--muted);}
   .badge{font-size:11px;font-weight:700;color:var(--primary-dark);background:#e0f2fe;border:1px solid #bae6fd;padding:4px 10px;border-radius:999px;}
 
-  .grid{display:grid;grid-template-columns:372px minmax(0,1fr);gap:16px;align-items:start;}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:16px;align-items:start;}
+  .workspace{order:1;} .side-wrap{order:2;}
   @media (max-width:1000px){.grid{grid-template-columns:1fr;}}
   .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
   .section-title{font-size:12px;font-weight:800;margin:0 0 10px;color:#0369a1;border-left:4px solid var(--primary);padding-left:8px;text-transform:uppercase;letter-spacing:.5px;}
@@ -64,7 +65,7 @@
   .toolbar select{width:260px;padding:5px;}
   .status{margin-left:auto;font-size:11.5px;color:#0369a1;font-weight:700;}
 
-  #mapWrap{position:relative;height:580px;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+  #mapWrap{position:relative;height:640px;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
   #mapEl{height:100%;width:100%;background:#0f172a;}
   #mapPlaceholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;text-align:center;background:#0f172a;z-index:500;pointer-events:none;}
   .map-legend{position:absolute;left:10px;bottom:10px;z-index:600;background:rgba(255,255,255,.95);padding:8px 10px;border-radius:6px;border:1px solid var(--border);font-size:11.5px;display:none;box-shadow:0 1px 4px rgba(0,0,0,.15);}
@@ -124,6 +125,23 @@
   .pill.off{background:#f1f5f9;color:#94a3b8;}
   .pill.ok{background:#dcfce7;color:#166534;}
   .gnote{font-size:12px;color:#475569;line-height:1.5;margin:6px 0;}
+  .wx-box{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:10px;}
+  .wx-box summary{cursor:pointer;font-size:11.5px;font-weight:800;color:#0369a1;}
+  .wx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;} .wx-grid canvas{width:100%;height:auto;border:1px solid var(--border);border-radius:8px;}
+  @media (max-width:700px){.wx-grid{grid-template-columns:1fr;}}
+  .wx-box a{color:var(--primary-dark);}
+  .psel-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:#f8fafc;position:sticky;top:57px;z-index:4;}
+  .psel-bar .chip{border:1px solid var(--primary);background:#fff;color:var(--primary-dark);border-radius:999px;padding:4px 11px;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .psel-bar .chip:hover{background:#e0f2fe;}
+  .psel-bar .chip.on{background:var(--primary);color:#fff;}
+  .psel-grp{display:flex;align-items:center;gap:10px;margin:18px 0 6px;}
+  .psel-grp h3{margin:0;flex:1;}
+  .psel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:6px;}
+  .psel-item{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;padding:7px 9px;cursor:pointer;background:#fff;}
+  .psel-item:hover{background:#f0f9ff;} .psel-item.on{border-color:var(--primary);background:#f0f9ff;} .psel-item.na{opacity:.55;}
+  .psel-item input{width:auto;margin-top:3px;} .psel-item .t{font-size:12px;font-weight:800;color:#0f172a;} .psel-item .f{font-family:ui-monospace,monospace;font-size:10px;color:#0c4a6e;word-break:break-word;}
+  .psel-foot{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);position:sticky;bottom:0;background:#fff;border-radius:0 0 12px 12px;}
+  .psel-foot .btn{width:auto;padding:8px 18px;}
   @media (max-width:700px){table.gtbl td.fm{min-width:120px;}}
 </style>
 </head>
@@ -136,6 +154,7 @@
       <p>Multispectral orthomosaic → vegetation indices, ETa, CWSI and terrain, summarised per treatment on a georeferenced map.</p>
     </div>
     <div class="hdr-right">
+      <button class="hdr-btn" id="paramBtn">🧪 Select parameters</button>
       <button class="hdr-btn" id="guideBtn">📖 Index &amp; parameter guide</button>
       <span class="badge">UC Davis · Advanced Irrigation Lab</span>
     </div>
@@ -185,17 +204,42 @@
             <button class="btn btn-outline" id="crsApplyBtn" style="margin-top:6px;">Apply CRS</button>
           </div>
         </div>
+        <details class="wx-box" id="wxBox" open>
+          <summary>📅 Flight date, hours &amp; weather (Open-Meteo)</summary>
+          <div style="margin-top:8px;">
+            <div class="two">
+              <div class="input-group"><label for="wxDate">Flight date</label><input type="date" id="wxDate"></div>
+              <div class="input-group"><label for="wxLoc">Location (lat, lon)</label>
+                <div class="two" style="gap:4px;"><input type="number" id="wxLat" step="any" placeholder="lat"><input type="number" id="wxLon" step="any" placeholder="lon"></div></div>
+              <div class="input-group"><label for="wxStart">Flight start (local)</label><input type="time" id="wxStart" value="11:00"></div>
+              <div class="input-group"><label for="wxEnd">Flight end (local)</label><input type="time" id="wxEnd" value="13:00"></div>
+            </div>
+            <div class="btn-row"><button class="btn btn-outline" id="wxBtn">⬇ Get weather</button><button class="btn btn-outline" id="wxCsvBtn" disabled>CSV</button></div>
+            <div class="note" id="wxPlace" style="margin:6px 0 0;"></div>
+            <div class="alert-box" id="wxInfo" style="margin-top:8px;"></div>
+            <p class="note" style="margin-bottom:0;">Weather loads automatically when the orthomosaic is opened and whenever the date, hours or location change. It fills <b>T_air</b> (mean over the flight hours) and <b>ETo</b> (daily FAO-56) in the Calibrate tab. Location = orthomosaic centre; hours are local time there. Open-Meteo values come from gridded reanalysis/forecast models (~10 km): for a field with a nearby CIMIS or on-site station, prefer station data. Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0).</p>
+          </div>
+        </details>
 
       </div>
 
       <div class="card" data-pane="cal">
         <div class="section-title">Boundary calibration</div>
-        <p class="step-intro">Set the weather and the wet/dry reference temperatures used by ETa and CWSI, adjust canopy parameters if needed, then press <b>Process</b>.</p>
+        <p class="step-intro">T_air and ETo are filled from the weather data (Data tab) and can be edited. Set the wet/dry reference temperatures used by ETa and CWSI, adjust canopy parameters if needed, then press <b>Process</b>. Choose the parameters to map and export with <b>🧪 Select parameters</b> (top of the page).</p>
         <div class="two">
           <div class="input-group"><label for="eto">Reference ETo (mm/day)</label><input type="number" id="eto" value="6.0" step="0.1"></div>
           <div class="input-group"><label for="tair">T_air (°C)</label><input type="number" id="tair" value="28.0" step="0.1"></div>
           <div class="input-group"><label for="twet">T_wet — cold (°C)</label><input type="number" id="twet" value="22.0" step="0.1"></div>
           <div class="input-group"><label for="tdry">T_dry — hot (°C)</label><input type="number" id="tdry" value="38.5" step="0.1"></div>
+        </div>
+        <div class="wx-box" style="margin-top:2px;">
+          <div class="two">
+            <div class="input-group"><label for="pctWet">T_wet percentile (canopy)</label><input type="number" id="pctWet" value="5" min="0.5" max="49" step="0.5"></div>
+            <div class="input-group"><label for="pctDry">T_dry percentile (dry soil)</label><input type="number" id="pctDry" value="95" min="51" max="99.5" step="0.5"></div>
+          </div>
+          <button class="btn btn-outline" id="suggestBtn" disabled>🌡 Suggest T_wet / T_dry from the image</button>
+          <div class="alert-box" id="suggestInfo" style="margin-top:8px;"></div>
+          <p class="note" style="margin-bottom:0;">Uses the thermal band: T_wet = low percentile of canopy temperature (coolest, best-watered canopy); T_dry = high percentile of bare-soil temperature (non-transpiring surface). Check the values before processing.</p>
         </div>
         <details style="margin:4px 0 10px;">
           <summary style="cursor:pointer;font-size:11.5px;font-weight:700;color:#0369a1;">Canopy &amp; vegetation parameters</summary>
@@ -243,7 +287,7 @@
       </div>
 
       <div class="card" data-pane="trt">
-        <div class="section-title">Treatment boundaries &amp; statistics</div>
+        <div class="section-title">Treatment boundaries &amp; summary</div>
         <p class="step-intro">Load the plot polygons (after processing), choose the treatment field, compute the summary, then export.</p>
         <div class="input-group">
           <label for="shpUpload">Shapefile (.zip, or .shp + .dbf + .prj) or GeoJSON</label>
@@ -253,15 +297,8 @@
         <div class="two">
           <div class="input-group"><label for="trtField">Treatment field</label><select id="trtField" disabled></select></div>
           <div class="input-group"><label for="plotField">Plot label field</label><select id="plotField" disabled></select></div>
-          <div class="input-group"><label for="statBasis">Statistical unit</label>
-            <select id="statBasis">
-              <option value="plot">Plot means (recommended)</option>
-              <option value="pixel">All pixels (pseudo-replicated)</option>
-            </select></div>
-          <div class="input-group"><label for="alpha">Significance α</label><input type="number" id="alpha" value="0.05" step="0.01" min="0.001" max="0.5"></div>
         </div>
-        <div class="input-group"><label for="refTrt">Reference treatment (for % difference)</label><select id="refTrt" disabled><option value="">(none)</option></select></div>
-        <div class="input-group"><label for="maskMode">Pixels used in statistics</label>
+        <div class="input-group"><label for="maskMode">Pixels used in the summary</label>
           <select id="maskMode">
             <option value="all">All valid pixels</option>
             <option value="canopy">Canopy pixels only (NDVI ≥ threshold)</option>
@@ -272,7 +309,7 @@
           <button class="btn btn-success" id="excelBtn" disabled>📥 Excel</button>
           <button class="btn btn-success" id="reportBtn" disabled>📄 Report</button>
         </div>
-        <p class="note" style="margin-bottom:0;">Each polygon is treated as one plot (replicate). Plots sharing the same treatment value are pooled. Comparison: one-way ANOVA + pairwise Welch t-tests (Bonferroni) with letter groupings. <b>Excel</b> = all numbers; <b>Report</b> = one printable HTML summary of every parameter (tables, boxplots, formulas, meanings).</p>
+        <p class="note" style="margin-bottom:0;">Each polygon is one plot; plots sharing the same treatment value are pooled. The summary lists mean, SD, quartiles and range of the parameters you selected. <b>Excel</b> = all numbers; <b>Report</b> = one printable HTML summary of every parameter (tables, boxplots, formulas, meanings).</p>
       </div>
 
       <div class="card" data-pane="tools">
@@ -292,12 +329,6 @@
           <button class="btn btn-outline" id="exportPtsBtn" disabled>⬇ CSV</button>
           <button class="btn btn-danger-outline" id="clearPtsBtn" disabled>🗑 Clear</button>
         </div>
-      </div>
-
-      <div class="card" data-pane="tools">
-        <div class="section-title">Reference</div>
-        <p class="note" style="margin-top:0;">Formula, required bands and interpretation of every band, index, canopy parameter, ETa model, CWSI and terrain variable.</p>
-        <button class="btn btn-outline" id="guideBtn2">📖 Open index &amp; parameter guide</button>
       </div>
     </div>
     </div>
@@ -327,11 +358,23 @@
         </div>
       </div>
 
+      <div class="card" id="wxCard" style="display:none;">
+        <div class="section-title">Weather on the flight day</div>
+        <div class="note" id="wxCardNote" style="margin-top:-4px;"></div>
+        <div class="wx-grid">
+          <canvas id="wxCvT" width="520" height="250"></canvas>
+          <canvas id="wxCvRH" width="520" height="250"></canvas>
+          <canvas id="wxCvRS" width="520" height="250"></canvas>
+          <canvas id="wxCvET" width="520" height="250"></canvas>
+        </div>
+        <p class="note" style="margin-bottom:0;">Hourly values, local time. Shaded band = flight hours used for T_air. Source: Open-Meteo.com (CC BY 4.0), gridded model data (~10 km).</p>
+      </div>
+
       <div class="card" id="trtCard" style="display:none;">
         <div class="section-title">Treatment Summary</div>
         <div class="note" id="trtNote" style="margin-top:-4px;"></div>
         <div class="scroll" style="max-height:340px;"><div id="trtTable"></div></div>
-        <p class="note">Cells show the pixel-weighted treatment mean; letters (same letter = not significantly different) and ANOVA p come from the chosen statistical unit. Green p = significant at α.</p>
+        <p class="note">Cells show the pixel-weighted treatment mean and standard deviation. Choose the parameters in <b>Select parameters</b> (Calibrate tab).</p>
       </div>
 
       <div class="card" id="trtChartCard" style="display:none;">
@@ -374,6 +417,19 @@
   </div>
 </div>
 
+<div class="modal" id="paramModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <b>Select parameters</b>
+      <span class="note" style="margin:0;">Chosen parameters are mapped, summarised per treatment and exported (Excel, report).</span>
+      <button class="modal-x" id="paramClose" style="margin-left:auto;" title="Close">✕</button>
+    </div>
+    <div class="psel-bar" id="pselBar"></div>
+    <div id="paramBody" style="padding:6px 16px 14px;"></div>
+    <div class="psel-foot"><span class="note" style="margin:0;" id="pselCount"></span><button class="btn btn-outline" id="pselCancel" style="width:auto;padding:8px 14px;">Cancel</button><button class="btn" id="pselApply">Apply</button></div>
+  </div>
+</div>
+
 <script>
 const $ = id => document.getElementById(id);
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -408,7 +464,6 @@ const VARS = [
   {key:'evi',   label:'EVI',       group:'vi', unit:'', needs:['N','R','B'], ramp:'veg', f:'2.5·(NIR−Red)/(NIR+6Red−7.5Blue+1)'},
   {key:'cigreen',label:'CI green', group:'vi', unit:'', needs:['N','G'],  ramp:'veg', f:'NIR/Green − 1'},
   {key:'cirededge',label:'CI red-edge', group:'vi', unit:'', needs:['N','RE'], ramp:'veg', f:'NIR/RedEdge − 1'},
-  {key:'ndwi',  label:'NDWI (green-NIR)', short:'NDWI', group:'vi', unit:'', needs:['N','G'], ramp:'eta', f:'(Green−NIR)/(Green+NIR)'},
   {key:'mcari', label:'MCARI',     group:'vi', unit:'', needs:['G','R','RE'], ramp:'veg', f:'[(RedEdge−Red)−0.2(RedEdge−Green)]·(RedEdge/Red)'},
   {key:'vari',  label:'VARI',      group:'vi', unit:'', needs:['G','R','B'], ramp:'veg', f:'(Green−Red)/(Green+Red−Blue)'},
   {key:'gli',   label:'GLI',       group:'vi', unit:'', needs:['G','R','B'], ramp:'veg', f:'(2Green−Red−Blue)/(2Green+Red+Blue)'},
@@ -430,13 +485,12 @@ const VARS = [
   {key:'eta_sims',   label:'ETa SIMS / FAO-56 Kc', short:'SIMS', group:'eta', unit:'mm/d', needs:['N','R'], ramp:'eta', f:'clip(1.25·NDVI+0.1,0.05,1.3)·ETo'},
   {key:'eta_ptjpl',  label:'ETa PT-JPL canopy', short:'PT-JPL', group:'eta', unit:'mm/d', needs:['N','R'], ramp:'eta', f:'(NDVI>0.1 ? min(1,NDVI²) : 0.05)·1.26·0.75·ETo'},
 
-  {key:'cwsi_ensemble',   label:'CWSI ensemble',            short:'CWSI ens.', group:'cwsi', unit:'', needs:['T'], ramp:'stress', f:'0.5·empirical + 0.5·theoretical'},
-  {key:'cwsi_empirical',  label:'CWSI empirical (Idso)',    short:'CWSI emp.', group:'cwsi', unit:'', needs:['T'], ramp:'stress', f:'(Tc−Tair−LL)/(UL−LL), LL=1.5−1.8·2.0, UL=5'},
-  {key:'cwsi_theoretical',label:'CWSI theoretical (Jackson)',short:'CWSI theo.',group:'cwsi', unit:'', needs:['T'], ramp:'stress', f:'(Tc−Twet)/(Tdry−Twet)'},
+  {key:'cwsi_theoretical',label:'CWSI',short:'CWSI',group:'cwsi', unit:'', needs:['T'], ramp:'stress', f:'(Tc−Twet)/(Tdry−Twet)'},
   {key:'ig',    label:'Stomatal conductance index (Ig)', short:'Ig', group:'cwsi', unit:'', needs:['T'], ramp:'eta', f:'(Tdry−Tc)/(Tc−Twet), clipped to 0–10'},
   {key:'dtair', label:'Canopy − air temperature', short:'Tc−Tair', group:'cwsi', unit:'°C', needs:['T'], ramp:'stress', f:'Tc − Tair'},
 
-  {key:'elev',      label:'Elevation',  group:'dem', unit:'m', needs:['DEM'], ramp:'terrain', f:'DSM value (nearest cell)'},
+  {key:'elev',      label:'Surface elevation (DSM)', short:'DSM', group:'dem', unit:'m', needs:['DEM'], ramp:'terrain', f:'DSM value (nearest cell)'},
+  {key:'dem_ground', label:'Ground elevation (DEM = DSM − plant height)', short:'DEM (ground)', group:'dem', unit:'m', needs:['DEM','GROUND'], ramp:'terrain', f:'DSM − plant height'},
   {key:'slope',     label:'Slope',      group:'dem', unit:'°', needs:['DEM'], ramp:'stress',  f:'Horn 3×3 gradient'},
   {key:'northness', label:'Northness',  group:'dem', unit:'',  needs:['DEM'], ramp:'terrain', f:'cos(aspect)'},
   {key:'eastness',  label:'Eastness',   group:'dem', unit:'',  needs:['DEM'], ramp:'terrain', f:'sin(aspect)'}
@@ -459,7 +513,6 @@ const INFO = {
   evi:{m:'Enhanced Vegetation Index. Uses blue to correct aerosol effects and a canopy background term; stays sensitive where NDVI saturates. Requires reflectance scaled 0–1.',r:'−1 to 1; vegetation typically 0.2–0.8.'},
   cigreen:{m:'Chlorophyll Index – green. Ratio-based estimate of leaf chlorophyll (and nitrogen) content, roughly linear over a wide range.',r:'0 to ~10; higher = more chlorophyll.'},
   cirededge:{m:'Chlorophyll Index – red edge. Same idea as CI green but using the red edge, often the better predictor of canopy chlorophyll and N status.',r:'0 to ~8; higher = more chlorophyll.'},
-  ndwi:{m:'NDWI after McFeeters (green–NIR). Highlights open water and very wet surfaces; negative over vegetation and soil. It is not a leaf-water-content index.',r:'Positive = water or wet surface; negative = vegetation or soil.'},
   mcari:{m:'Modified Chlorophyll Absorption in Reflectance Index. Measures the depth of the chlorophyll absorption feature near 670 nm relative to green and red edge. Also affected by soil background and LAI.',r:'No fixed range; compare relatively between treatments and calibrate against SPAD / lab chlorophyll.'},
   vari:{m:'Visible Atmospherically Resistant Index. Uses only visible bands, so it works with RGB cameras for greenness and cover. Unstable when Green + Red ≈ Blue.',r:'About −1 to 1; vegetation > 0.'},
   gli:{m:'Green Leaf Index. Greenness from visible bands only: high where green dominates red and blue.',r:'−1 to 1; vegetation typically > 0.1.'},
@@ -481,13 +534,12 @@ const INFO = {
   eta_sims:{m:'SIMS-type crop-coefficient approach: Kc estimated from NDVI and multiplied by ETo. Not thermal, so it follows canopy size and greenness rather than water stress.',r:'mm/day; 0.05 – 1.3 × ETo.'},
   eta_ptjpl:{m:'Priestley–Taylor-type canopy ET driven by NDVI² (vegetation fraction), with PT coefficient 1.26 and a 0.75 scaling, times ETo. Vegetation-driven, not stress-sensitive in this implementation.',r:'mm/day; up to about 0.95 × ETo.'},
 
-  cwsi_ensemble:{m:'Average of the empirical and theoretical CWSI, combining a baseline-derived and a wet/dry-reference estimate of crop water stress.',r:'0 = no stress (fully transpiring); 1 = maximum stress (non-transpiring).'},
-  cwsi_empirical:{m:'Idso empirical CWSI: canopy–air temperature difference relative to a non-stressed lower limit (LL) and a non-transpiring upper limit (UL = 5 °C). The lower limit uses a fixed default VPD assumption (LL = 1.5 − 1.8·2.0), so recalibrate it for your crop and VPD.',r:'0 to 1 (values outside are possible before clipping).'},
-  cwsi_theoretical:{m:'Position of canopy temperature between the wet (T_wet) and dry (T_dry) reference temperatures, in the spirit of Jackson’s theoretical CWSI.',r:'0 = at T_wet (no stress); 1 = at T_dry (maximum stress).'},
+  cwsi_theoretical:{m:'Crop Water Stress Index: the position of canopy temperature between the wet (T_wet, fully transpiring) and dry (T_dry, non-transpiring) reference temperatures, in the spirit of Jackson’s theoretical CWSI. It depends directly on the T_wet and T_dry you set.',r:'0 = at T_wet (no stress); 1 = at T_dry (maximum stress).'},
   ig:{m:'Stomatal conductance index of Jones: proportional to stomatal conductance. High values mean open stomata and well-watered plants. Undefined where Tc ≤ T_wet + 0.1 °C.',r:'≥ 0, clipped at 10; higher = more open stomata.'},
   dtair:{m:'Canopy minus air temperature. Negative = canopy cooler than air (transpiring); positive = warmer than air, a common sign of stress. Simple but depends on VPD.',r:'Typically −5 to +8 °C.'},
 
   elev:{m:'Surface elevation from the DSM at the pixel. Because the model is a surface model, it includes vegetation height.',r:'Metres above the datum.'},
+  dem_ground:{m:'Ground (bare-earth) elevation obtained as DSM minus plant height. It equals the estimated or supplied ground surface wherever plant height is positive, and the DSM value where plant height is clamped to 0.',r:'Metres above the datum; smoother than the DSM.'},
   slope:{m:'Steepness from the Horn 3×3 gradient of the DSM. On a surface model it also captures canopy roughness and row structure; use a bare-soil DEM for true ground slope.',r:'0–90°.'},
   northness:{m:'Cosine of aspect. +1 = slope faces north, −1 = faces south. Controls solar radiation load.',r:'−1 to 1.'},
   eastness:{m:'Sine of aspect. +1 = slope faces east, −1 = faces west. Controls morning versus afternoon radiation.',r:'−1 to 1.'}
@@ -496,6 +548,21 @@ VARS.forEach(v=>{ const i=INFO[v.key]||{}; v.m=i.m||''; v.r=i.r||''; });
 const NV = VARS.length;
 const VIDX = {}; VARS.forEach((v,i)=>{ VIDX[v.key]=i; });
 const X = VIDX;
+
+/* parameter selection (which variables are mapped, summarised and exported) */
+const SEL_KEY='uavMapperSelection';
+const SEL = new Set(VARS.map(v=>v.key));
+try{ const saved=JSON.parse(localStorage.getItem(SEL_KEY)||'null');
+  if(Array.isArray(saved)){ const ok=saved.filter(k=>VIDX[k]!==undefined); if(ok.length){ SEL.clear(); ok.forEach(k=>SEL.add(k)); } } }catch(e){}
+const isSel = v => SEL.has(v.key);
+const activeVar = v => isSel(v) && varAvailable(v);
+const PRESETS = {
+  'Core':['tc','ndvi','ndre','osavi','canopy','fvc','lai','height','eta_ensemble','cwsi_theoretical','dtair'],
+  'Greenness & cover':['ndvi','gndvi','savi','osavi','msavi2','evi','vari','gli','canopy','fvc','lai','fipar'],
+  'Chlorophyll / N':['ndre','gndvi','cigreen','cirededge','mcari','tcari','tcari_osavi','psri'],
+  'Water use & stress':['tc','dtair','eta_ensemble','eta_ssebi','eta_ssebop','eta_metric','eta_sims','eta_ptjpl','cwsi_theoretical','ig','kcb','ndvi'],
+  'Structure & terrain':['canopy','fvc','lai','height','dem_ground','elev','slope','northness','eastness']
+};
 
 const RAMPS = {
   gray:   ['#000000','#ffffff'],
@@ -526,7 +593,6 @@ let prep = null;
 let fieldSample = null;     // sorted Float32Array per variable
 let polys = null;           // {features, fields, name, layer}
 let Z = null;               // zonal results
-let comp = null;            // comparison results per variable index
 let map, satLayer, streetLayer, currentOverlay = null, polyLayer = null;
 let extractionMode = false, extractedPoints = [], mapFitted = false;
 
@@ -672,7 +738,7 @@ $('tifUpload').addEventListener('change',async e=>{
     const res=await readTiff(file,false);
     geo = Object.assign({crs:null},res);
     geo.crs = detectCrs(res);
-    prep=null; fieldSample=null; Z=null; comp=null; mapFitted=false;
+    prep=null; fieldSample=null; Z=null; mapFitted=false;
     if(currentOverlay){ map.removeLayer(currentOverlay); currentOverlay=null; }
     hideResults();
     fillBandSelects(res.samples);
@@ -700,7 +766,8 @@ $('tifUpload').addEventListener('change',async e=>{
       $('crsApplyBtn').parentElement.style.display='block';
     }
     $('mapPlaceholder').style.display='none';
-    $('processBtn').disabled=false;
+    $('processBtn').disabled=false; updateSuggestBtn();
+    setTimeout(()=>{ if(geo.hasGeoref&&geo.crs) onOrthoLocated(); },0);
     setStatus('GeoTIFF loaded. Check band mapping, then Process.');
   }catch(err){
     console.error(err); setStatus('Parsing error.');
@@ -714,7 +781,7 @@ $('crsApplyBtn').addEventListener('click',()=>{
   try{
     proj4.defs('CUSTOM_ORTHO',str); proj4('EPSG:4326','CUSTOM_ORTHO',[0,0]);
     geo.crs='CUSTOM_ORTHO'; $('crsWarning').style.display='none';
-    $('metaInfo').innerHTML+=' · custom CRS applied';
+    $('metaInfo').innerHTML+=' · custom CRS applied'; setTimeout(()=>{ if(geo.hasGeoref&&geo.crs) onOrthoLocated(); },0);
     if(prep){ prep.crsOK=true; renderLayer(); }
   }catch(e){ alert('Invalid proj4 definition: '+e.message); }
 });
@@ -757,7 +824,7 @@ async function onDemFile(e,which){
     const {d,html}=await loadDemFile(file);
     if(which==='dsm'){ dem=d; $('demInfo').style.display='block'; $('demInfo').innerHTML=html; }
     else { gdem=d; $('gDemInfo').style.display='block'; $('gDemInfo').innerHTML=html; }
-    Z=null; comp=null; hideResults();
+    Z=null; hideResults();
     if(prep) await runProcess(); else setStatus('DEM loaded. It will be used when you process.');
   }catch(err){ console.error(err); alert('Could not read the DEM: '+err.message); setStatus('DEM error.'); }
 }
@@ -932,7 +999,7 @@ function evalPixel(i,out){
     if(hasB){ const d2=n+6*r-7.5*b+1; if(d2!==0) out[X.evi]=2.5*(n-r)/d2; }
   }
   if(hasN&&hasG){
-    if(n+g!==0){ out[X.gndvi]=(n-g)/(n+g); out[X.ndwi]=(g-n)/(g+n); }
+    if(n+g!==0){ out[X.gndvi]=(n-g)/(n+g); }
     if(g!==0) out[X.cigreen]=n/g-1;
   }
   if(hasN&&hasRE){
@@ -977,10 +1044,8 @@ function evalPixel(i,out){
 
   // ---- CWSI ----
   if(tOK){
-    const LL=1.5-1.8*2.0;
-    let ce=(tc-Tair-LL)/(5.0-LL); ce=Math.max(0,Math.min(1,ce));
     let ct=(tc-Twet)/(dT+1e-6);   ct=Math.max(0,Math.min(1,ct));
-    out[X.cwsi_empirical]=ce; out[X.cwsi_theoretical]=ct; out[X.cwsi_ensemble]=0.5*ce+0.5*ct;
+    out[X.cwsi_theoretical]=ct;
     const wetGap=tc-Twet;
     if(wetGap>0.1){ let ig=(Tdry-tc)/wetGap; out[X.ig]=ig<0?0:(ig>10?10:ig); }
     out[X.dtair]=tc-Tair;
@@ -1003,7 +1068,7 @@ function evalPixel(i,out){
           const gc=Math.floor(ga.c0+ga.c1*(col+0.5)+ga.c2*(row+0.5)), gr=Math.floor(ga.r0+ga.r1*(col+0.5)+ga.r2*(row+0.5));
           if(gc>=0&&gc<gd.w&&gr>=0&&gr<gd.h) gz=gd.elev[gr*gd.w+gc];
         }
-        if(gz===gz){ const ht=z-gz; out[X.height]=ht>0?ht:0; }
+        if(gz===gz){ const ht=z-gz, hh=ht>0?ht:0; out[X.height]=hh; out[X.dem_ground]=z-hh; }
       }
       if(z===z && dc>0&&dc<W-1&&dr>0&&dr<d.h-1){
         const e1=e[j-W-1],e2=e[j-W],e3=e[j-W+1],e4=e[j-1],e6=e[j+1],e7=e[j+W-1],e8=e[j+W],e9=e[j+W+1];
@@ -1041,7 +1106,7 @@ async function runProcess(){
   buildPrep();
   autoVegParams();
   buildGround();
-  Z=null; comp=null; hideResults();
+  Z=null; hideResults();
   sampleField();
   const prev=$('layerSelect').value;
   rebuildLayerSelect(prev);
@@ -1063,7 +1128,7 @@ function rebuildLayerSelect(prevKey){
   const rgbOK=prep.has.R&&prep.has.G&&prep.has.B;
   if(rgbOK){ const og=document.createElement('optgroup'); og.label='Composite'; og.innerHTML='<option value="rgb">🛰️ RGB true-colour composite</option>'; sel.appendChild(og); }
   Object.keys(GROUPS).forEach(gk=>{
-    const items=VARS.filter(v=>v.group===gk && varAvailable(v));
+    const items=VARS.filter(v=>v.group===gk && activeVar(v));
     if(!items.length) return;
     const og=document.createElement('optgroup'); og.label=GROUPS[gk];
     items.forEach(v=>{ const o=document.createElement('option'); o.value=v.key; o.textContent=v.label+(v.unit?` (${v.unit})`:''); og.appendChild(o); });
@@ -1134,21 +1199,72 @@ function renderLayer(){
 /* =========================================================================
    EXPORT SINGLE LAYER AS GEOTIFF
    ========================================================================= */
+/* Minimal uncompressed single-band Float32 GeoTIFF writer (classic TIFF, little-endian, strips).
+   Writes explicit ModelPixelScale / ModelTiepoint / GeoKeyDirectory / GDAL_NODATA so ArcGIS and QGIS open it directly. */
+function epsgFromCrs(crs){ const m=/^EPSG:(\d+)$/.exec(crs||''); return m?parseInt(m[1]):null; }
+function geoKeysFor(epsg){
+  const geographic=(epsg===4326||epsg===4269);
+  const keys=[[1024,geographic?2:1],[1025,1]];
+  if(epsg){ keys.push(geographic?[2048,epsg]:[3072,epsg]); if(!geographic) keys.push([3076,9001]); else keys.push([2054,9102]); }
+  else keys.push([3072,32767]);
+  const dir=[1,1,0,keys.length]; keys.forEach(k=>dir.push(k[0],0,1,k[1]));
+  return dir;
+}
+function buildGeoTiffHeader(w,h,g){
+  const rps=Math.max(1,Math.min(h,Math.floor(1048576/(w*4)))), ns=Math.ceil(h/rps);
+  const gk=geoKeysFor(g.epsg);
+  const tags=[ // [tag,type,count,value|array]   types: 3 SHORT, 4 LONG, 12 DOUBLE, 2 ASCII
+    [256,4,1,[w]],[257,4,1,[h]],[258,3,1,[32]],[259,3,1,[1]],[262,3,1,[1]],
+    [273,4,ns,null],[277,3,1,[1]],[278,4,1,[rps]],[279,4,ns,null],[284,3,1,[1]],[339,3,1,[3]],
+    [33550,12,3,[g.pw,g.ph,0]],[33922,12,6,[0,0,0,g.xmin,g.ymax,0]],[34735,3,gk.length,gk],[42113,2,6,null]
+  ];
+  const nt=tags.length, ifdSize=2+12*nt+4;
+  let extra=8+ifdSize;                       // running offset of out-of-line data
+  const place={};
+  const alloc=(name,bytes)=>{ if(extra%2) extra++; place[name]=extra; extra+=bytes; };
+  if(ns>1){ alloc('so',4*ns); alloc('sc',4*ns); }
+  alloc('ps',24); alloc('tp',48); alloc('gk',2*gk.length); alloc('nd',6);
+  const dataOff=Math.ceil(extra/8)*8, total=dataOff+w*h*4;
+  const ab=new ArrayBuffer(total), dv=new DataView(ab), u8=new Uint8Array(ab);
+  dv.setUint8(0,0x49); dv.setUint8(1,0x49); dv.setUint16(2,42,true); dv.setUint32(4,8,true);
+  let p=8; dv.setUint16(p,nt,true); p+=2;
+  const rowBytes=w*4*rps;
+  tags.forEach(([tag,type,count,val])=>{
+    dv.setUint16(p,tag,true); dv.setUint16(p+2,type,true); dv.setUint32(p+4,count,true);
+    const vp=p+8;
+    if(tag===273){ if(ns===1) dv.setUint32(vp,dataOff,true); else { dv.setUint32(vp,place.so,true); for(let i=0;i<ns;i++) dv.setUint32(place.so+4*i,dataOff+i*rowBytes,true); } }
+    else if(tag===279){ if(ns===1) dv.setUint32(vp,w*h*4,true); else { dv.setUint32(vp,place.sc,true); for(let i=0;i<ns;i++) dv.setUint32(place.sc+4*i,Math.min(rps,h-i*rps)*w*4,true); } }
+    else if(tag===33550){ dv.setUint32(vp,place.ps,true); val.forEach((x,i)=>dv.setFloat64(place.ps+8*i,x,true)); }
+    else if(tag===33922){ dv.setUint32(vp,place.tp,true); val.forEach((x,i)=>dv.setFloat64(place.tp+8*i,x,true)); }
+    else if(tag===34735){ dv.setUint32(vp,place.gk,true); val.forEach((x,i)=>dv.setUint16(place.gk+2*i,x,true)); }
+    else if(tag===42113){ dv.setUint32(vp,place.nd,true); '-9999'.split('').forEach((c,i)=>u8[place.nd+i]=c.charCodeAt(0)); }
+    else if(type===3) dv.setUint16(vp,val[0],true);
+    else dv.setUint32(vp,val[0],true);
+    p+=12;
+  });
+  dv.setUint32(p,0,true);
+  return {ab,dataOff};
+}
 $('exportTifBtn').addEventListener('click',async ()=>{
   const key=$('layerSelect').value; if(!prep||!key||key==='rgb') return;
+  if(!geo.hasGeoref){ alert('The orthomosaic has no georeferencing, so a georeferenced GeoTIFF cannot be written.'); return; }
+  const {w,h}=prep, vi=X[key];
+  if(w*h*4>1.8e9){ alert('Raster too large to export in the browser (more than ~1.8 GB).'); return; }
   setStatus('Exporting GeoTIFF…'); await tick();
   try{
-    const {w,h}=prep, vi=X[key], buf=new Float32Array(w*h), out=new Float64Array(NV);
-    for(let i=0;i<w*h;i++){ evalPixel(i,out); buf[i]=out[vi]===out[vi]?out[vi]:-9999; }
-    const meta={width:w,height:h,BitsPerSample:[32],SampleFormat:[3],SamplesPerPixel:1,PhotometricInterpretation:1,Orientation:1};
-    if(geo.tiePoints) meta.ModelTiepoint=geo.tiePoints;
-    if(geo.pixelScale) meta.ModelPixelScale=geo.pixelScale;
-    if(geo.geoKeyDir) meta.GeoKeyDirectory=geo.geoKeyDir;
-    const ab=await GeoTIFF.writeArrayBuffer(buf,meta);
+    const epsg=epsgFromCrs(geo.crs);
+    const {ab,dataOff}=buildGeoTiffHeader(w,h,{pw:geo.pw,ph:geo.ph,xmin:geo.xmin,ymax:geo.ymax,epsg});
+    const px=new Float32Array(ab,dataOff,w*h), out=new Float64Array(NV);
+    for(let r=0;r<h;r++){
+      const base=r*w;
+      for(let c=0;c<w;c++){ evalPixel(base+c,out); const v=out[vi]; px[base+c]=v===v?v:-9999; }
+      if(r%200===199){ setStatus(`Exporting GeoTIFF… ${Math.round(r/h*100)}%`); await tick(); }
+    }
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ab],{type:'image/tiff'}));
-    a.download=`uav_${key}.tif`; a.click();
-    setStatus('Export complete (nodata = -9999).');
-  }catch(err){ console.error(err); alert('GeoTIFF export failed.'); }
+    a.download=`uav_${key}.tif`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+    setStatus(`Exported uav_${key}.tif (Float32, nodata = −9999, ${epsg?'EPSG:'+epsg:'CRS not recognised: define it in ArcGIS'}).`);
+  }catch(err){ console.error(err); alert('GeoTIFF export failed: '+err.message); setStatus('Export failed.'); }
 });
 
 /* =========================================================================
@@ -1160,7 +1276,7 @@ $('extractToggleBtn').addEventListener('click',()=>{
   b.innerText=extractionMode?'🎯 Extraction ON (click map)':'🎯 Enable Click-to-Extract';
   $('extractHint').style.display=extractionMode?'block':'none';
 });
-const PT_COLS=['tc','ndvi','ndre','fvc','height','eta_ensemble','cwsi_ensemble'];
+const PT_COLS=['tc','ndvi','ndre','fvc','height','eta_ensemble','cwsi_theoretical'];
 function fmtV(v){
   if(v===null||v===undefined||!isFinite(v)) return '–';
   const a=Math.abs(v); return v.toFixed(a>=100?1:(a>=10?2:3));
@@ -1193,89 +1309,11 @@ function renderPoints(){
 }
 $('clearPtsBtn').addEventListener('click',()=>{ extractedPoints.forEach(p=>p.marker&&map.removeLayer(p.marker)); extractedPoints=[]; renderPoints(); });
 $('exportPtsBtn').addEventListener('click',()=>{
-  const keys=VARS.filter(v=>extractedPoints.some(p=>p.vals[v.key]!==null)).map(v=>v.key);
+  const keys=VARS.filter(v=>isSel(v)&&extractedPoints.some(p=>p.vals[v.key]!==null)).map(v=>v.key);
   const csv=['id,lat,lng,row,col,'+keys.join(',')].concat(extractedPoints.map(p=>[p.id,p.lat,p.lng,p.row,p.col].concat(keys.map(k=>p.vals[k]===null?'':p.vals[k])).join(','))).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='uav_extracted_pixels.csv'; a.click();
 });
 
-/* =========================================================================
-   STATISTICS
-   ========================================================================= */
-/*<STATS>*/
-function lgamma(x){
-  const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
-  let y=x, tmp=x+5.5; tmp-=(x+0.5)*Math.log(tmp);
-  let ser=1.000000000190015; for(let j=0;j<6;j++) ser+=c[j]/++y;
-  return -tmp+Math.log(2.5066282746310005*ser/x);
-}
-function betacf(a,b,x){
-  const FPMIN=1e-300, EPS=3e-12, qab=a+b, qap=a+1, qam=a-1;
-  let c=1, d=1-qab*x/qap; if(Math.abs(d)<FPMIN) d=FPMIN; d=1/d; let h=d;
-  for(let m=1;m<=300;m++){
-    const m2=2*m;
-    let aa=m*(b-m)*x/((qam+m2)*(a+m2));
-    d=1+aa*d; if(Math.abs(d)<FPMIN) d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN) c=FPMIN; d=1/d; h*=d*c;
-    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
-    d=1+aa*d; if(Math.abs(d)<FPMIN) d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN) c=FPMIN; d=1/d;
-    const del=d*c; h*=del; if(Math.abs(del-1)<EPS) break;
-  }
-  return h;
-}
-function ibeta(x,a,b){
-  if(x<=0) return 0; if(x>=1) return 1;
-  const bt=Math.exp(lgamma(a+b)-lgamma(a)-lgamma(b)+a*Math.log(x)+b*Math.log(1-x));
-  return x<(a+1)/(a+b+2) ? bt*betacf(a,b,x)/a : 1-bt*betacf(b,a,1-x)/b;
-}
-function tTwoSidedP(t,df){ if(!isFinite(t)) return 0; return ibeta(df/(df+t*t),df/2,0.5); }
-function fUpperP(F,d1,d2){ if(!isFinite(F)) return 0; if(F<=0) return 1; return ibeta(d2/(d2+d1*F),d2/2,d1/2); }
-
-function anova(groups){
-  const g=groups.filter(x=>x.n>=1&&isFinite(x.mean));
-  const k=g.length, N=g.reduce((s,x)=>s+x.n,0);
-  if(k<2||N<=k) return null;
-  const M=g.reduce((s,x)=>s+x.n*x.mean,0)/N;
-  let ssb=0,ssw=0; g.forEach(x=>{ ssb+=x.n*(x.mean-M)*(x.mean-M); ssw+=(x.n-1)*(x.sd||0)*(x.sd||0); });
-  const d1=k-1,d2=N-k, msb=ssb/d1, msw=ssw/d2;
-  let F,p;
-  if(msw===0){ F=msb>0?Infinity:0; p=msb>0?0:1; } else { F=msb/msw; p=fUpperP(F,d1,d2); }
-  return {F,df1:d1,df2:d2,p,k,N};
-}
-function welch(a,b){
-  const diff=a.mean-b.mean, va=(a.sd*a.sd)/a.n, vb=(b.sd*b.sd)/b.n, se2=va+vb;
-  if(se2===0){ return {t:diff===0?0:Infinity,df:a.n+b.n-2,p:diff===0?1:0,diff}; }
-  const t=diff/Math.sqrt(se2);
-  const df=se2*se2/((va*va)/(a.n-1)+(vb*vb)/(b.n-1));
-  return {t,df,p:tTwoSidedP(t,df),diff};
-}
-function pairwise(groups){
-  const el=[]; groups.forEach((g,i)=>{ if(g.n>=2&&isFinite(g.mean)) el.push(i); });
-  const pairs=[];
-  for(let x=0;x<el.length;x++) for(let y=x+1;y<el.length;y++){
-    const i=el[x],j=el[y], r=welch(groups[i],groups[j]);
-    pairs.push({i,j,diff:r.diff,t:r.t,df:r.df,p:r.p});
-  }
-  const m=pairs.length; pairs.forEach(p=>{ p.padj=Math.min(1,p.p*m); });
-  return pairs;
-}
-function letterGroups(groups,pairs,alpha){
-  const letters=groups.map(()=> '');
-  const el=[]; groups.forEach((g,i)=>{ if(g.n>=2&&isFinite(g.mean)) el.push(i); });
-  if(el.length<2) return letters;
-  el.sort((a,b)=>groups[b].mean-groups[a].mean);
-  const sig=new Set(); pairs.forEach(p=>{ if(p.padj<alpha){ sig.add(p.i+'|'+p.j); sig.add(p.j+'|'+p.i); } });
-  const k=el.length, sets=[];
-  const allNS=(s,e)=>{ for(let a=s;a<=e;a++) for(let b=a+1;b<=e;b++) if(sig.has(el[a]+'|'+el[b])) return false; return true; };
-  for(let s=0;s<k;s++){
-    let e=s; while(e+1<k && !sig.has(el[s]+'|'+el[e+1])) e++;
-    while(e>s && !allNS(s,e)) e--;
-    if(!sets.some(t=>t[0]<=s&&t[1]>=e)) sets.push([s,e]);
-  }
-  el.forEach((gi,pos)=>{
-    letters[gi]=sets.map((t,idx)=>(t[0]<=pos&&t[1]>=pos)?String.fromCharCode(97+(idx%26)):'').join('');
-  });
-  return letters;
-}
-/*</STATS>*/
 
 /* =========================================================================
    RASTERISING POLYGONS
@@ -1357,13 +1395,11 @@ $('shpUpload').addEventListener('change',async e=>{
     const guess=fields.find(f=>/^(treat|trt|tx|trmt)/i.test(f))||fields.find(f=>/treat|trt/i.test(f))||fields.find(f=>/^(name|id|plot|label)$/i.test(f))||fields[0];
     if(guess) $('trtField').value=guess;
     const pg=fields.find(f=>/^(plot|id|name|label|rep)/i.test(f)&&f!==guess); if(pg) $('plotField').value=pg;
-    $('refTrt').disabled=false;
-    refreshRefTrt();
     $('shpInfo').style.display='block';
     $('shpInfo').innerHTML=`<strong>${esc(name)}</strong><br>${feats.length} polygon(s) · fields: ${fields.map(esc).join(', ')||'none'}${note}`;
     drawPolys();
     if(!geo.w){ map.fitBounds(polyLayer.getBounds()); }
-    Z=null; comp=null; hideResults(); updateZonalButtons();
+    Z=null; hideResults(); updateZonalButtons();
     setStatus('Boundaries loaded.');
   }catch(err){ console.error(err); alert('Could not read boundaries: '+err.message); setStatus('Boundary error.'); }
 });
@@ -1380,11 +1416,6 @@ function plotLabelOf(f,idx){
 const natSort=(a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true});
 const PALETTE=['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffd92f','#a65628','#f781bf','#17becf','#999999','#66c2a5','#8da0cb'];
 function treatmentList(){ return [...new Set(polys.features.map(trtOf))].sort(natSort); }
-function refreshRefTrt(){
-  const cur=$('refTrt').value, s=$('refTrt'); s.innerHTML='<option value="">(none)</option>';
-  treatmentList().forEach(t=>{ s.innerHTML+=`<option value="${esc(t)}">${esc(t)}</option>`; });
-  if([...s.options].some(o=>o.value===cur)) s.value=cur;
-}
 function drawPolys(){
   if(!polys) return;
   if(polyLayer) map.removeLayer(polyLayer);
@@ -1397,7 +1428,7 @@ function drawPolys(){
   }).addTo(map);
   polys.layer=polyLayer;
 }
-['trtField','plotField'].forEach(id=>$(id).addEventListener('change',()=>{ refreshRefTrt(); drawPolys(); Z=null; comp=null; hideResults(); updateZonalButtons(); }));
+['trtField','plotField'].forEach(id=>$(id).addEventListener('change',()=>{ drawPolys(); Z=null; hideResults(); updateZonalButtons(); }));
 $('showLabels').addEventListener('change',drawPolys);
 function updateZonalButtons(){
   $('zonalBtn').disabled=!(prep && polys && geo.hasGeoref && geo.crs);
@@ -1430,7 +1461,7 @@ $('zonalBtn').addEventListener('click',async ()=>{
 
 async function computeZonal(){
   const w=geo.w,h=geo.h;
-  const vIdx=[]; VARS.forEach((v,i)=>{ if(varAvailable(v)) vIdx.push(i); });
+  const vIdx=[]; VARS.forEach((v,i)=>{ if(activeVar(v)) vIdx.push(i); });
   const feats=[];
   polys.features.forEach((f,fi)=>{
     const pp=toPixelPolys(f.geometry); if(!pp.length) return;
@@ -1502,7 +1533,6 @@ async function computeZonal(){
      meta:{ortho:geo.name,dem:dem?dem.name:null,boundaries:polys.name,trtField:$('trtField').value,computed:new Date(),
        maskMode:canopyOnly?`Canopy pixels only (NDVI ≥ ${prep.canThr}); canopy cover uses all valid pixels`:'All valid pixels',
        ground:!prep.dem?'(no DSM)':(prep.gMode==='file'?('Bare-soil DEM: '+(gdem?gdem.name:'(none)')):`DSM local ${$('gPct').value}th percentile, ${$('gBlock').value} m blocks`)}};
-  runComparisons();
   renderTrtTable(); renderTrtChartControls(); renderTrtChart();
   $('trtCard').style.display='block'; $('trtChartCard').style.display='block';
   $('excelBtn').disabled=false; $('reportBtn').disabled=false;
@@ -1510,52 +1540,20 @@ async function computeZonal(){
   $('trtCard').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-function groupStats(vi,basis){
-  return Z.treatments.map(t=>{
-    if(basis==='pixel'){
-      const s=t.stats[vi]; if(!s) return {name:t.name,n:0,mean:NaN,sd:NaN,se:NaN};
-      return {name:t.name,n:s.cnt,mean:s.mean,sd:s.sd,se:s.sd/Math.sqrt(s.cnt)};
-    }
-    const vals=[]; Z.plots.forEach(p=>{ if(p.treatment===t.name && p.cnt[vi]>0) vals.push(p.sum[vi]/p.cnt[vi]); });
-    const n=vals.length; if(!n) return {name:t.name,n:0,mean:NaN,sd:NaN,se:NaN};
-    const mean=vals.reduce((a,b)=>a+b,0)/n;
-    const sd=n>1?Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(n-1)):0;
-    return {name:t.name,n,mean,sd,se:n>1?sd/Math.sqrt(n):NaN};
-  });
-}
-function runComparisons(){
-  if(!Z) return;
-  const basis=$('statBasis').value, alpha=Math.min(0.5,Math.max(0.0001,parseFloat($('alpha').value)||0.05));
-  comp={basis,alpha,byVar:{}};
-  Z.vIdx.forEach(vi=>{
-    const groups=groupStats(vi,basis), an=anova(groups), pairs=pairwise(groups), letters=letterGroups(groups,pairs,alpha);
-    groups.forEach((g,i)=>{ g.letter=letters[i]; });
-    comp.byVar[vi]={groups,anova:an,pairs};
-  });
-}
-['statBasis','alpha','refTrt'].forEach(id=>$(id).addEventListener('change',()=>{ if(Z){ runComparisons(); renderTrtTable(); renderTrtChart(); } }));
-
 /* =========================================================================
    TREATMENT TABLE & CHART
    ========================================================================= */
-function fmtP(p){ if(p===null||p===undefined||!isFinite(p)) return '–'; return p<0.001?'<0.001':p.toFixed(3); }
 function renderTrtTable(){
-  const alpha=comp.alpha, v=Z.vIdx;
+  const v=Z.vIdx;
   let html='<table class="tbl"><thead><tr><th>Treatment</th><th>Plots</th><th>Pixels</th><th>Area (ha)</th>'+
-    v.map(vi=>`<th>${esc(VARS[vi].short||VARS[vi].label)}<br><span class="u">${esc(VARS[vi].unit)}</span></th>`).join('')+'</tr>'+
-    '<tr class="pr"><th>ANOVA p</th><th></th><th></th><th></th>'+
-    v.map(vi=>{ const a=comp.byVar[vi].anova; return `<th class="${a&&a.p<alpha?'sig':''}">${a?fmtP(a.p):'–'}</th>`; }).join('')+'</tr></thead><tbody>';
-  Z.treatments.forEach((t,ti)=>{
+    v.map(vi=>`<th>${esc(VARS[vi].short||VARS[vi].label)}<br><span class="u">${esc(VARS[vi].unit)}</span></th>`).join('')+'</tr></thead><tbody>';
+  Z.treatments.forEach(t=>{
     html+=`<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${t.color};margin-right:6px;"></span>${esc(t.name)}</td><td>${t.nPlots}</td><td>${t.n}</td><td>${(t.areaM2/10000).toFixed(3)}</td>`+
-      v.map(vi=>{ const s=t.stats[vi]; const L=comp.byVar[vi].groups[ti].letter; return `<td>${s?fmtV(s.mean):'–'}${L?`<span class="let">${L}</span>`:''}</td>`; }).join('')+'</tr>';
+      v.map(vi=>{ const s=t.stats[vi]; return `<td>${s?fmtV(s.mean):'–'}${s&&s.sd>0?` <span class="u">±${fmtV(s.sd)}</span>`:''}</td>`; }).join('')+'</tr>';
   });
   html+='</tbody></table>';
   $('trtTable').innerHTML=html;
-  const needRep = comp.basis==='plot' && !Z.vIdx.some(vi=>comp.byVar[vi].anova);
-  $('trtNote').innerHTML = needRep
-    ? '<b style="color:#b45309">Not enough replicates for ANOVA on plot means</b> (each treatment has a single polygon). Add replicate polygons, or switch the statistical unit to “All pixels” (p-values will be inflated by spatial autocorrelation).'
-    : (comp.basis==='pixel' ? '<b style="color:#b45309">Pixel-level tests treat each pixel as independent, so p-values are overly optimistic.</b> Prefer plot means when replicate polygons exist.' : `Tests on plot means · α = ${alpha}`);
-  $('trtNote').innerHTML += `<br>Pixels used: ${esc(Z.meta.maskMode)}.`;
+  $('trtNote').innerHTML=`Mean ± SD (pixel-to-pixel) for the ${Z.vIdx.length} selected parameter(s). Pixels used: ${esc(Z.meta.maskMode)}.`;
 }
 function renderTrtChartControls(){
   const s=$('trtVarSel'), prev=s.value; s.innerHTML='';
@@ -1570,12 +1568,11 @@ function renderTrtChartControls(){
 }
 $('trtVarSel').addEventListener('change',()=>{ if(Z) renderTrtChart(); });
 function renderTrtChart(){
-  if(!Z||!comp) return;
+  if(!Z) return;
   const key=$('trtVarSel').value, vi=X[key], v=VARS[vi];
-  const items=Z.treatments.map((t,ti)=>{ const s=t.stats[vi]; if(!s) return null;
-    return {label:t.name,min:s.p05,q1:s.q1,median:s.median,q3:s.q3,max:s.p95,mean:s.mean,letter:comp.byVar[vi].groups[ti].letter,color:t.color}; }).filter(Boolean);
-  const a=comp.byVar[vi].anova;
-  drawBoxplot($('trtCanvas'),items,{title:`${v.label}${v.unit?' ('+v.unit+')':''} by treatment`+(a?` — ANOVA p ${fmtP(a.p)}`:''),unit:v.unit});
+  const items=Z.treatments.map(t=>{ const s=t.stats[vi]; if(!s) return null;
+    return {label:t.name,min:s.p05,q1:s.q1,median:s.median,q3:s.q3,max:s.p95,mean:s.mean,letter:'',color:t.color}; }).filter(Boolean);
+  drawBoxplot($('trtCanvas'),items,{title:`${v.label}${v.unit?' ('+v.unit+')':''} by treatment`,unit:v.unit});
 }
 
 /* =========================================================================
@@ -1584,7 +1581,7 @@ function renderTrtChart(){
 function renderFieldGroupSelect(){
   const s=$('fieldGroupSel'), prev=s.value; s.innerHTML='';
   Object.keys(GROUPS).forEach(gk=>{
-    if(VARS.some(v=>v.group===gk && varAvailable(v))) s.innerHTML+=`<option value="${gk}">${GROUPS[gk]}</option>`;
+    if(VARS.some(v=>v.group===gk && activeVar(v))) s.innerHTML+=`<option value="${gk}">${GROUPS[gk]}</option>`;
   });
   if([...s.options].some(o=>o.value===prev)) s.value=prev; else if([...s.options].some(o=>o.value==='eta')) s.value='eta';
   $('fieldCard').style.display=s.options.length?'block':'none';
@@ -1594,7 +1591,7 @@ $('fieldGroupSel').addEventListener('change',renderFieldChart);
 function renderFieldChart(){
   if(!prep||!fieldSample) return;
   const gk=$('fieldGroupSel').value; if(!gk) return;
-  const items=VARS.filter(v=>v.group===gk&&varAvailable(v)).map(v=>{
+  const items=VARS.filter(v=>v.group===gk&&activeVar(v)).map(v=>{
     const a=fieldSample[X[v.key]]; if(!a.length) return null;
     let m=0; for(let i=0;i<a.length;i++) m+=a[i]; m/=a.length;
     return {label:v.short||v.label,min:arrQuantile(a,0.05),q1:arrQuantile(a,0.25),median:arrQuantile(a,0.5),q3:arrQuantile(a,0.75),max:arrQuantile(a,0.95),mean:m,letter:'',color:gk==='eta'&&v.key==='eta_ensemble'?'#0284c7':'#64748b'};
@@ -1662,11 +1659,10 @@ function sheet(aoa,widths){
 }
 function vHeader(vi){ const v=VARS[vi]; return v.label+(v.unit?` (${v.unit})`:''); }
 $('excelBtn').addEventListener('click',()=>{
-  if(!Z||!comp) return;
+  if(!Z) return;
   if(typeof XLSX==='undefined'){ alert('Excel library failed to load (check internet connection).'); return; }
   try{
-    const wb=XLSX.utils.book_new(), V=Z.vIdx, basis=comp.basis, alpha=comp.alpha, ref=$('refTrt').value;
-    const basisTxt=basis==='plot'?'Plot means (polygons as replicates)':'All pixels (pseudo-replicated)';
+    const wb=XLSX.utils.book_new(), V=Z.vIdx;
 
     // README
     const readme=[
@@ -1681,12 +1677,12 @@ $('excelBtn').addEventListener('click',()=>{
       ['fIPAR = a·NDVI + b',`a=${prep.fa}, b=${prep.fb}`],['Kcb = a·NDVI + b',`a=${prep.ka}, b=${prep.kb}`],
       ['Surface model (DSM)',Z.meta.dem||'(none)'],['Ground surface for plant height',Z.meta.ground],
       ['Boundaries',Z.meta.boundaries],['Treatment field',Z.meta.trtField],
-      ['Statistical unit',basisTxt],['Alpha',alpha],['Reference treatment',ref||'(none)'],
+      ['Parameters exported',`${V.length} selected`],
+      ['Weather source',wx?`Open-Meteo, ${wx.date} ${wx.startT}–${wx.endT}, mean T_air ${wx.sum.tMean.toFixed(1)} °C, daily ETo ${wx.sum.eto===null?'n/a':wx.sum.eto.toFixed(2)} mm (${wx.lat.toFixed(4)}, ${wx.lon.toFixed(4)})`:'(entered manually)'],
       [],
       ['Notes'],
       ['Mean, SD, min, max use all valid pixels inside the polygons. Percentiles/quartiles/median use a systematic subsample of ≤10,000 pixels per treatment.'],
-      ['Tests: one-way ANOVA across treatments; pairwise Welch t-tests with Bonferroni correction; letters share = not significantly different.'],
-      ['With the plot-mean basis each polygon is one replicate. Pixel-basis p-values are inflated by spatial autocorrelation.'],
+      ['SD in Treatment_Means / Treatment_Stats is the pixel-to-pixel standard deviation inside the treatment. Plot_Means lists every plot so that between-plot variability can be analysed in your own statistics software.'],
       [],
       ['Variable dictionary'],['Variable','Group','Unit','Formula','Meaning','Typical values']
     ];
@@ -1718,40 +1714,20 @@ $('excelBtn').addEventListener('click',()=>{
     });
     XLSX.utils.book_append_sheet(wb,sheet(pm,[18,20,10,10].concat(V.map(()=>16)).concat(hasH?[18,22]:[])),'Plot_Means');
 
-    // Comparison (long, with letters)
-    const cp=[['Group','Variable','Unit','Statistical unit','Treatment','n','Mean','SD','SE','Letter','ANOVA_p','Diff_vs_ref','Pct_diff_vs_ref']];
-    V.forEach(vi=>{ const c=comp.byVar[vi], rg=ref?c.groups.find(g=>g.name===ref):null;
-      c.groups.forEach(g=>{ if(!g.n) return;
-        const d=rg&&isFinite(rg.mean)?g.mean-rg.mean:'', pc=rg&&rg.mean?((g.mean-rg.mean)/Math.abs(rg.mean))*100:'';
-        cp.push([GROUPS[VARS[vi].group],VARS[vi].label,VARS[vi].unit,basis==='plot'?'plots':'pixels',g.name,g.n,rn(g.mean),rn(g.sd),rn(g.se),g.letter||'',c.anova?rn(c.anova.p,6):'',d===''?'':rn(d),pc===''?'':rn(pc,3)]); }); });
-    XLSX.utils.book_append_sheet(wb,sheet(cp,[28,32,8,14,20,8,12,12,12,8,10,12,14]),'Comparison');
-
-    // ANOVA
-    const an=[['Group','Variable','Unit','Statistical unit','k treatments','N','F','df1','df2','p_value','Significant','Highest mean','Lowest mean']];
-    V.forEach(vi=>{ const c=comp.byVar[vi], a=c.anova, g=c.groups.filter(x=>x.n&&isFinite(x.mean)).sort((p,q)=>q.mean-p.mean);
-      an.push([GROUPS[VARS[vi].group],VARS[vi].label,VARS[vi].unit,basis,a?a.k:'',a?a.N:'',a?rn(a.F,4):'',a?a.df1:'',a?rn(a.df2,2):'',a?rn(a.p,6):'',a?(a.p<alpha?'yes':'no'):'n/a (insufficient replicates)',g.length?g[0].name:'',g.length?g[g.length-1].name:'']); });
-    XLSX.utils.book_append_sheet(wb,sheet(an,[28,32,8,10,12,8,10,6,8,10,26,20,20]),'ANOVA');
-
-    // Pairwise
-    const pw=[['Group','Variable','Unit','Treatment A','Treatment B','Mean A','Mean B','Diff (A-B)','t','df','p_value','p_Bonferroni','Significant']];
-    V.forEach(vi=>{ const c=comp.byVar[vi]; c.pairs.forEach(p=>{
-      pw.push([GROUPS[VARS[vi].group],VARS[vi].label,VARS[vi].unit,c.groups[p.i].name,c.groups[p.j].name,rn(c.groups[p.i].mean),rn(c.groups[p.j].mean),rn(p.diff),rn(p.t,4),rn(p.df,2),rn(p.p,6),rn(p.padj,6),p.padj<alpha?'yes':'no']); }); });
-    XLSX.utils.book_append_sheet(wb,sheet(pw,[28,32,8,20,20,12,12,12,9,9,10,12,11]),'Pairwise');
-
     // DEM summary
     if(dem && V.includes(X.elev)){
       const ev=X.elev, sv=X.slope, nv=X.northness, evv=X.eastness;
-      const ds=[['Level','Treatment','Plot','N_pixels','Elev_mean_m','Elev_min_m','Elev_max_m','Elev_SD_m','Elev_range_m','Slope_mean_deg','Slope_max_deg','Northness_mean','Eastness_mean'].concat(hasH?['Height_mean_m','Height_P95_or_max_m','Canopy_volume_m3']:[])];
+      const ds=[['Level','Treatment','Plot','N_pixels','Elev_mean_m','Elev_min_m','Elev_max_m','Elev_SD_m','Elev_range_m','Slope_mean_deg','Slope_max_deg','Northness_mean','Eastness_mean'].concat(hasH?['Height_mean_m','Height_P95_or_max_m','Canopy_volume_m3','Ground_DEM_mean_m']:[])];
       Z.treatments.forEach(t=>{ const e=t.stats[ev], s=t.stats[sv]; if(!e) return;
         const row=['Treatment',t.name,'',e.cnt,rn(e.mean,3),rn(e.min,3),rn(e.max,3),rn(e.sd,3),rn(e.max-e.min,3),s?rn(s.mean,3):'',s?rn(s.max,3):'',t.stats[nv]?rn(t.stats[nv].mean,4):'',t.stats[evv]?rn(t.stats[evv].mean,4):''];
-        if(hasH){ const hs=t.stats[hi]; row.push(hs?rn(hs.mean,3):'',hs?rn(hs.p95,3):'',hs?rn(hs.mean*hs.cnt*pxA,3):''); }
+        if(hasH){ const hs=t.stats[hi]; row.push(hs?rn(hs.mean,3):'',hs?rn(hs.p95,3):'',hs?rn(hs.mean*hs.cnt*pxA,3):'',t.stats[X.dem_ground]?rn(t.stats[X.dem_ground].mean,3):''); }
         ds.push(row); });
       Z.plots.forEach(p=>{ if(!(p.cnt[ev]>0)) return;
         const row=['Plot',p.treatment,p.label,p.cnt[ev],rn(p.sum[ev]/p.cnt[ev],3),rn(p.min[ev],3),rn(p.max[ev],3),'',rn(p.max[ev]-p.min[ev],3),
           p.cnt[sv]>0?rn(p.sum[sv]/p.cnt[sv],3):'',p.cnt[sv]>0?rn(p.max[sv],3):'',p.cnt[nv]>0?rn(p.sum[nv]/p.cnt[nv],4):'',p.cnt[evv]>0?rn(p.sum[evv]/p.cnt[evv],4):''];
-        if(hasH){ row.push(p.cnt[hi]>0?rn(p.sum[hi]/p.cnt[hi],3):'',p.cnt[hi]>0?rn(p.max[hi],3):'',p.cnt[hi]>0?rn(p.sum[hi]*pxA,3):''); }
+        if(hasH){ row.push(p.cnt[hi]>0?rn(p.sum[hi]/p.cnt[hi],3):'',p.cnt[hi]>0?rn(p.max[hi],3):'',p.cnt[hi]>0?rn(p.sum[hi]*pxA,3):'',p.cnt[X.dem_ground]>0?rn(p.sum[X.dem_ground]/p.cnt[X.dem_ground],3):''); }
         ds.push(row); });
-      XLSX.utils.book_append_sheet(wb,sheet(ds,[11,20,18,10,12,12,12,11,13,14,14,14,14].concat(hasH?[14,18,16]:[])),'DEM_Summary');
+      XLSX.utils.book_append_sheet(wb,sheet(ds,[11,20,18,10,12,12,12,11,13,14,14,14,14].concat(hasH?[14,18,16,16]:[])),'DEM_Summary');
     }
 
     const d=new Date(), stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -1791,12 +1767,12 @@ function guideRows(filter){
 }
 function guideStatic(){
   return `<h3>Symbols</h3><p class="gnote">Blue, Green, Red, RedEdge and NIR are surface reflectances (0–1, after the reflectance divisor). Tc = canopy (pixel) temperature; Tair = air temperature; Twet / Tdry = cold and hot boundary temperatures; ETo = reference evapotranspiration. Calibration inputs are set in the <b>Calibrate</b> tab.</p>
-  <h3>Statistics used in summaries</h3>
-  <p class="gnote"><b>Plot means</b> (recommended): every polygon is one replicate; treatments are compared with one-way ANOVA and pairwise Welch t-tests with Bonferroni correction. Treatments that share a letter are not significantly different. <b>All pixels</b> treats each pixel as a replicate; p-values are then inflated by spatial autocorrelation. <b>Canopy pixels only</b> removes soil pixels (NDVI below the canopy threshold) before computing means, which matters most for canopy temperature, CWSI, ETa and height. <b>Canopy volume</b> = Σ(height × pixel area).</p>`;
+  <h3>How summaries are computed</h3>
+  <p class="gnote">Treatment tables report the mean and the pixel-to-pixel standard deviation of every polygon pixel in the treatment (plots with the same treatment value are pooled). <b>Canopy pixels only</b> removes soil pixels (NDVI below the canopy threshold) before computing means, which matters most for canopy temperature, CWSI, ETa and height. <b>Canopy volume</b> = Σ(height × pixel area). Choose which parameters are mapped, summarised and exported in <b>Select parameters</b>.</p>`;
 }
 function renderGuide(){ $('guideBody').innerHTML=guideStatic()+guideRows($('guideSearch').value); }
 function openGuide(){ $('guideModal').style.display='flex'; renderGuide(); $('guideSearch').focus(); }
-['guideBtn','guideBtn2'].forEach(id=>$(id).addEventListener('click',openGuide));
+$('guideBtn').addEventListener('click',openGuide);
 $('guideClose').addEventListener('click',()=>{ $('guideModal').style.display='none'; });
 $('guideModal').addEventListener('click',e=>{ if(e.target===$('guideModal')) $('guideModal').style.display='none'; });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('guideModal').style.display='none'; });
@@ -1808,15 +1784,12 @@ $('guideSearch').addEventListener('input',renderGuide);
 function boxplotPNG(vi){
   const v=VARS[vi], cv=document.createElement('canvas'); cv.width=640; cv.height=300;
   const items=Z.treatments.map((t,ti)=>{ const s=t.stats[vi]; if(!s) return null;
-    return {label:t.name,min:s.p05,q1:s.q1,median:s.median,q3:s.q3,max:s.p95,mean:s.mean,letter:comp.byVar[vi].groups[ti].letter,color:t.color}; }).filter(Boolean);
-  const a=comp.byVar[vi].anova;
-  drawBoxplot(cv,items,{title:`${v.label}${v.unit?' ('+v.unit+')':''}`+(a?` — ANOVA p ${fmtP(a.p)}`:''),unit:v.unit});
+    return {label:t.name,min:s.p05,q1:s.q1,median:s.median,q3:s.q3,max:s.p95,mean:s.mean,letter:'',color:t.color}; }).filter(Boolean);
+  drawBoxplot(cv,items,{title:`${v.label}${v.unit?' ('+v.unit+')':''}`,unit:v.unit});
   return cv.toDataURL('image/png');
 }
 function buildReport(){
-  const V=Z.vIdx, alpha=comp.alpha, basis=comp.basis, ref=$('refTrt').value;
-  const basisTxt=basis==='plot'?'Plot means (polygons as replicates)':'All pixels (pseudo-replicated)';
-  const refG=vi=>ref?comp.byVar[vi].groups.find(g=>g.name===ref):null;
+  const V=Z.vIdx;
   const hi=X.height, hasH=V.includes(hi), pxA=Z.pixArea;
   const f=(x,d=3)=>(x===null||x===undefined||!isFinite(x))?'–':fmtV(x);
   const css=`body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;margin:0;padding:28px;background:#f6f8fb;}
@@ -1844,34 +1817,25 @@ function buildReport(){
     ['fIPAR (a, b) · Kcb (a, b)',`${prep.fa}, ${prep.fb} · ${prep.ka}, ${prep.kb}`],
     ['Surface model (DSM)',Z.meta.dem||'(none)'],['Ground surface for plant height',Z.meta.ground],
     ['Boundaries · treatment field',`${Z.meta.boundaries} · ${Z.meta.trtField}`],['Pixels used in statistics',Z.meta.maskMode],
-    ['Statistical unit · α',`${basisTxt} · ${alpha}`],['Reference treatment',ref||'(none)'],
+    ['Parameters included',`${V.length} selected`],
+    ['Weather source',wx?`Open-Meteo, ${wx.date} ${wx.startT}–${wx.endT}; mean T_air ${wx.sum.tMean.toFixed(1)} °C; daily ETo ${wx.sum.eto===null?'n/a':wx.sum.eto.toFixed(2)} mm/day; (${wx.lat.toFixed(4)}, ${wx.lon.toFixed(4)})`:'(entered manually)'],
     ['Treatments · plots · area',`${Z.treatments.length} · ${Z.plots.length} · ${rn(Z.treatments.reduce((s,t)=>s+t.areaM2,0)/10000,3)} ha`]];
   h+=`<h2>1. Inputs and settings</h2><table class="kv"><tbody>${kv.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join('')}</tbody></table>`;
 
-  // 2. key findings
-  const rows=V.map(vi=>{ const c=comp.byVar[vi], a=c.anova, g=c.groups.filter(x=>x.n&&isFinite(x.mean)).sort((p,q)=>q.mean-p.mean);
-    return {vi,a,g}; }).filter(r=>r.g.length>1);
-  const sigRows=rows.filter(r=>r.a&&r.a.p<alpha).sort((p,q)=>p.a.p-q.a.p);
-  h+=`<h2>2. Key findings</h2>`;
-  if(sigRows.length){
-    h+=`<p class="note">Variables with a significant treatment effect (ANOVA p &lt; ${alpha}), strongest first. Spread = highest minus lowest treatment mean, as % of the lowest absolute mean.</p><table><thead><tr><th>Variable</th><th>ANOVA p</th><th class="l">Highest</th><th class="l">Lowest</th><th>Spread</th></tr></thead><tbody>`+
-      sigRows.map(r=>{ const hiG=r.g[0], loG=r.g[r.g.length-1], sp=loG.mean?((hiG.mean-loG.mean)/Math.abs(loG.mean)*100):NaN;
-        return `<tr><td>${esc(VARS[r.vi].label)} <span class="u">${esc(VARS[r.vi].unit)}</span></td><td class="sig">${fmtP(r.a.p)}</td><td class="l">${esc(hiG.name)} (${f(hiG.mean)})</td><td class="l">${esc(loG.name)} (${f(loG.mean)})</td><td>${isFinite(sp)?sp.toFixed(1)+' %':'–'}</td></tr>`; }).join('')+'</tbody></table>';
-  } else {
-    h+=`<p class="note">${comp.basis==='plot'&&!rows.some(r=>r.a)?'Not enough replicate polygons per treatment to run ANOVA on plot means. Means are reported without tests.':'No variable shows a significant treatment effect at the chosen α.'}</p>`;
-  }
+  // 2. ranking
+  const rank=V.map(vi=>({vi,g:Z.treatments.filter(t=>t.stats[vi]&&isFinite(t.stats[vi].mean)).map(t=>({name:t.name,mean:t.stats[vi].mean})).sort((p,q)=>q.mean-p.mean)})).filter(r=>r.g.length>1);
+  h+=`<h2>2. Highest and lowest treatments</h2><p class="note">For each parameter, the treatments with the highest and lowest mean. Spread = highest minus lowest mean, as % of the lowest absolute mean. Descriptive only; no significance tests are applied.</p><table><thead><tr><th>Variable</th><th class="l">Highest</th><th class="l">Lowest</th><th>Spread</th></tr></thead><tbody>`+
+    rank.map(r=>{ const a=r.g[0], b=r.g[r.g.length-1], sp=b.mean?((a.mean-b.mean)/Math.abs(b.mean)*100):NaN;
+      return `<tr><td>${esc(VARS[r.vi].label)} <span class="u">${esc(VARS[r.vi].unit)}</span></td><td class="l">${esc(a.name)} (${f(a.mean)})</td><td class="l">${esc(b.name)} (${f(b.mean)})</td><td>${isFinite(sp)?sp.toFixed(1)+' %':'–'}</td></tr>`; }).join('')+'</tbody></table>';
 
   // 3. tables per group
-  h+=`<h2>3. Treatment means by parameter group</h2><p class="note">Mean ± SD of the ${basis==='plot'?'plot means':'pixels'} per treatment; letters = Welch t-test with Bonferroni (same letter = not different).${ref?' Percent in grey = difference from the reference treatment “'+esc(ref)+'”.':''}</p>`;
+  h+=`<h2>3. Treatment means by parameter group</h2><p class="note">Mean ± SD (pixel-to-pixel) per treatment.</p>`;
   Object.keys(GROUPS).forEach(gk=>{
     const items=V.filter(vi=>VARS[vi].group===gk); if(!items.length) return;
-    h+=`<h3>${esc(GROUPS[gk])}</h3><div style="overflow-x:auto"><table><thead><tr><th>Variable</th>${Z.treatments.map(t=>`<th>${esc(t.name)}</th>`).join('')}<th>ANOVA p</th></tr></thead><tbody>`;
-    items.forEach(vi=>{ const c=comp.byVar[vi], rg=refG(vi);
+    h+=`<h3>${esc(GROUPS[gk])}</h3><div style="overflow-x:auto"><table><thead><tr><th>Variable</th>${Z.treatments.map(t=>`<th>${esc(t.name)}</th>`).join('')}</tr></thead><tbody>`;
+    items.forEach(vi=>{
       h+=`<tr><td>${esc(VARS[vi].short||VARS[vi].label)} <span class="u">${esc(VARS[vi].unit)}</span></td>`+
-        c.groups.map(g=>{ if(!g.n||!isFinite(g.mean)) return '<td>–</td>';
-          const d=(rg&&rg.name!==g.name&&rg.mean&&isFinite(rg.mean))?((g.mean-rg.mean)/Math.abs(rg.mean)*100):null;
-          return `<td>${f(g.mean)}${isFinite(g.sd)&&g.n>1?` <span class="u">± ${f(g.sd)}</span>`:''}${g.letter?`<span class="let">${g.letter}</span>`:''}${d!==null?`<span class="diff">${d>0?'+':''}${d.toFixed(1)}%</span>`:''}</td>`; }).join('')+
-        `<td class="${c.anova&&c.anova.p<alpha?'sig':''}">${c.anova?fmtP(c.anova.p):'–'}</td></tr>`; });
+        Z.treatments.map(t=>{ const s=t.stats[vi]; return s?`<td>${f(s.mean)}${s.sd>0?` <span class="u">± ${f(s.sd)}</span>`:''}</td>`:'<td>–</td>'; }).join('')+'</tr>'; });
     h+='</tbody></table></div>';
   });
   if(hasH){
@@ -1881,7 +1845,7 @@ function buildReport(){
   }
 
   // 4. charts
-  h+=`<h2>4. Treatment distributions</h2><p class="note">Box = quartiles, red line = median, ◆ = mean, whiskers = 5th–95th percentile (systematic subsample of ≤ ${SAMPLE_CAP} pixels per treatment). Letters from the statistical test.</p>`;
+  h+=`<h2>4. Treatment distributions</h2><p class="note">Box = quartiles, red line = median, ◆ = mean, whiskers = 5th–95th percentile (systematic subsample of ≤ ${SAMPLE_CAP} pixels per treatment).</p>`;
   Object.keys(GROUPS).forEach(gk=>{
     const items=V.filter(vi=>VARS[vi].group===gk&&Z.treatments.some(t=>t.stats[vi])); if(!items.length) return;
     h+=`<h3>${esc(GROUPS[gk])}</h3><div class="charts">`+items.map(vi=>`<img alt="${esc(VARS[vi].label)}" src="${boxplotPNG(vi)}">`).join('')+'</div>';
@@ -1893,14 +1857,13 @@ function buildReport(){
 
   // 6. notes
   h+=`<h2>6. Methods and caveats</h2><ul class="note"><li>Means, SD, min and max use all valid pixels inside the polygons; quartiles and percentiles use a systematic subsample.</li>
-  <li>Tests: one-way ANOVA across treatments and pairwise Welch t-tests with Bonferroni correction. Plot-mean statistics need at least two replicate polygons per treatment; pixel-based p-values are inflated by spatial autocorrelation.</li>
   <li>ETa and CWSI depend on the user-set T_air, T_wet, T_dry and ETo; fIPAR, Kcb and LAI use generic coefficients that should be calibrated per crop. These are image-derived estimates and should be checked against ground measurements.</li>
   <li>The report reflects the settings above at the time of computation; changing settings requires re-computing the summary.</li></ul>`;
   h+='</div></body></html>';
   return h;
 }
 $('reportBtn').addEventListener('click',()=>{
-  if(!Z||!comp) return;
+  if(!Z) return;
   try{
     const html=buildReport(), blob=new Blob([html],{type:'text/html'}), a=document.createElement('a');
     const d=new Date(), stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -1910,8 +1873,279 @@ $('reportBtn').addEventListener('click',()=>{
   }catch(err){ console.error(err); alert('Report failed: '+err.message); }
 });
 
+/* =========================================================================
+   T_WET / T_DRY SUGGESTION FROM THE THERMAL IMAGE
+   ========================================================================= */
+/*<TSUG>*/
+function suggestWetDry(tc,ndvi,opt){
+  // tc: array of canopy+soil temperatures (°C); ndvi: matching array or null
+  const q=(a,p)=>{ const s=Float32Array.from(a).sort(); return arrQuantile(s,p); };
+  const pw=(opt.pw||5)/100, pd=(opt.pd||95)/100, MIN=50;
+  const r={n:tc.length,thr:null,nCan:0,nSoil:0,tcMin:q(tc,0.001),tcMax:q(tc,0.999),warn:[]};
+  let can=null, soil=null;
+  if(ndvi){
+    const nd=Float32Array.from(ndvi).sort();
+    r.thr=(opt.thr!==null&&opt.thr!==undefined&&isFinite(opt.thr))?opt.thr:otsuThreshold(nd);
+    can=[]; soil=[];
+    for(let i=0;i<tc.length;i++){ if(ndvi[i]>=r.thr) can.push(tc[i]); else soil.push(tc[i]); }
+    r.nCan=can.length; r.nSoil=soil.length;
+  }
+  if(can && can.length>=MIN){ r.twet=q(can,pw); r.wetFrom='canopy pixels'; }
+  else { r.twet=q(tc,pw); r.wetFrom='all pixels'; r.warn.push(ndvi?'few canopy pixels found; T_wet taken from all pixels':'no NIR/red bands selected; T_wet taken from all pixels'); }
+  if(soil && soil.length>=MIN){ r.tdry=q(soil,pd); r.dryFrom='bare-soil pixels'; }
+  else { r.tdry=q(tc,pd); r.dryFrom='all pixels'; r.warn.push(ndvi?'little bare soil visible; T_dry taken from all pixels and may underestimate the dry limit':'T_dry taken from all pixels'); }
+  if(!(r.tdry>r.twet+2)) r.warn.push('T_dry is less than 2 °C above T_wet; enter the limits manually');
+  return r;
+}
+/*</TSUG>*/
+function updateSuggestBtn(){ $('suggestBtn').disabled=!(geo&&geo.w&&parseInt($('selT').value)>=0); }
+['selT'].forEach(id=>$(id).addEventListener('change',updateSuggestBtn));
+$('suggestBtn').addEventListener('click',async ()=>{
+  const info=$('suggestInfo'); info.style.display='block';
+  const ti=parseInt($('selT').value); if(!geo.w||!(ti>=0)){ info.innerHTML='Select the thermal band first.'; return; }
+  info.innerHTML='Analysing thermal image…'; await tick();
+  const tb=geo.bands[ti], ni=parseInt($('selN').value), ri=parseInt($('selR').value);
+  const nb=ni>=0?geo.bands[ni]:null, rb=ri>=0?geo.bands[ri]:null, useN=!!(nb&&rb);
+  const K=$('thermUnit').value==='K', nd=geo.nodata, step=Math.max(1,Math.floor(tb.length/200000));
+  const tc=[], ndv=useN?[]:null;
+  for(let i=0;i<tb.length;i+=step){
+    let v=tb[i]; if(!(v===v) || v===nd || v===0 || v<-1e30) continue;
+    if(K) v-=273.15; if(v<-30||v>90) continue;
+    if(useN){ const n=nb[i], r=rb[i]; if(!(n===n&&r===r)||n===nd||r===nd) continue; const sum=n+r; if(!sum) continue; ndv.push((n-r)/sum); }
+    tc.push(v);
+  }
+  if(tc.length<100){ info.innerHTML='<b style="color:#b45309">Not enough valid thermal pixels.</b> Check the thermal band and units.'; return; }
+  const thr=$('autoVeg').checked?null:parseFloat($('canThr').value);
+  const r=suggestWetDry(tc,ndv,{pw:parseFloat($('pctWet').value),pd:parseFloat($('pctDry').value),thr});
+  $('twet').value=r.twet.toFixed(1); $('tdry').value=r.tdry.toFixed(1);
+  const ta=parseFloat($('tair').value);
+  info.innerHTML=`<b>T_wet ${r.twet.toFixed(1)} °C</b> (${$('pctWet').value}th percentile of ${r.wetFrom}) · <b>T_dry ${r.tdry.toFixed(1)} °C</b> (${$('pctDry').value}th percentile of ${r.dryFrom})<br>`+
+    `Image Tc range ${r.tcMin.toFixed(1)}–${r.tcMax.toFixed(1)} °C${r.thr!==null?` · canopy/soil split at NDVI ${r.thr.toFixed(2)} (${r.nCan.toLocaleString()} / ${r.nSoil.toLocaleString()} sampled pixels)`:''}`+
+    (isFinite(ta)?`<br>T_wet − T_air = ${(r.twet-ta).toFixed(1)} °C · T_dry − T_air = ${(r.tdry-ta).toFixed(1)} °C`:'')+
+    (r.warn.length?`<br><b style="color:#b45309">Note:</b> ${esc(r.warn.join('; '))}.`:'')+
+    `<br><span style="color:#64748b">Values were written to T_wet and T_dry. Adjust if you have reference-surface measurements.</span>`;
+  setStatus('T_wet / T_dry suggested from the thermal image.');
+});
+
+/* =========================================================================
+   WEATHER FROM OPEN-METEO
+   ========================================================================= */
+/*<WX>*/
+function wxHour(t){ const m=/^(\d{1,2}):(\d{2})/.exec(t||''); return m?parseInt(m[1])+parseInt(m[2])/60:NaN; }
+function wxSummarize(j,startT,endT){
+  const H=j&&j.hourly; if(!H||!H.time||!H.time.length) throw new Error('no hourly data returned');
+  let hs=Math.round(wxHour(startT)), he=Math.round(wxHour(endT));
+  if(!isFinite(hs)||!isFinite(he)) throw new Error('enter the flight start and end time');
+  if(he<hs){ const x=hs; hs=he; he=x; }
+  const rows=[], all=[];
+  const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
+  for(let i=0;i<H.time.length;i++){
+    const hr=parseInt(H.time[i].slice(11,13));
+    const r={time:H.time[i],hour:hr,temp:H.temperature_2m?H.temperature_2m[i]:null,rh:H.relative_humidity_2m?H.relative_humidity_2m[i]:null,
+             wind:H.wind_speed_10m?H.wind_speed_10m[i]:null,rs:H.shortwave_radiation?H.shortwave_radiation[i]:null,et:H.et0_fao_evapotranspiration?H.et0_fao_evapotranspiration[i]:null,inWindow:hr>=hs&&hr<=he};
+    r.vpd=wxVpd(r.temp,r.rh); all.push(r); if(r.inWindow&&r.temp!==null&&r.temp!==undefined) rows.push(r);
+  }
+  if(!rows.length) throw new Error('no hourly temperature in the flight window');
+  const col=k=>rows.map(r=>r[k]).filter(v=>v!==null&&v!==undefined&&isFinite(v));
+  const T=col('temp');
+  const eto=(j.daily&&j.daily.et0_fao_evapotranspiration)?j.daily.et0_fao_evapotranspiration[0]:null;
+  return {all,rows,n:rows.length,hours:[hs,he],tMean:mean(T),tMin:Math.min(...T),tMax:Math.max(...T),rhMean:mean(col('rh')),windMean:mean(col('wind')),rsMean:mean(col('rs')),vpdMean:mean(col('vpd')),
+          eto:(eto===null||eto===undefined||!isFinite(eto))?null:eto,tz:j.timezone||'',tzAbbr:j.timezone_abbreviation||''};
+}
+function wxVpd(T,RH){ if(T===null||RH===null||T===undefined||RH===undefined||!isFinite(T)||!isFinite(RH)) return null; const es=0.6108*Math.exp(17.27*T/(T+237.3)); return Math.max(0,es*(1-Math.min(100,Math.max(0,RH))/100)); }
+function wxEndpoints(dateStr){
+  const age=(Date.now()-Date.parse(dateStr+'T00:00:00Z'))/86400000;
+  const A='https://archive-api.open-meteo.com/v1/archive', F='https://api.open-meteo.com/v1/forecast';
+  return age>8?[A,F]:[F,A];
+}
+function wxUrl(base,lat,lon,date){
+  return `${base}?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,shortwave_radiation,et0_fao_evapotranspiration&daily=et0_fao_evapotranspiration&wind_speed_unit=ms&timezone=auto`;
+}
+/*</WX>*/
+let wx=null, wxToken=0, wxTimer=null, footLayer=null;
+function updateWxLocation(){
+  if(!geo||!geo.hasGeoref||!geo.crs) return false;
+  try{
+    const q=inv(geo.crs,(geo.xmin+geo.xmax)/2,(geo.ymin+geo.ymax)/2);
+    if(isFinite(q[0])&&isFinite(q[1])){ $('wxLon').value=q[0].toFixed(5); $('wxLat').value=q[1].toFixed(5); return true; }
+  }catch(e){}
+  return false;
+}
+/* outline the orthomosaic footprint on the map, zoom to it, then locate it and fetch the weather */
+function showFootprint(){
+  if(!geo||!geo.hasGeoref||!geo.crs||!map) return;
+  try{
+    const c=[[geo.xmin,geo.ymin],[geo.xmax,geo.ymin],[geo.xmax,geo.ymax],[geo.xmin,geo.ymax]].map(p=>{ const q=inv(geo.crs,p[0],p[1]); return [q[1],q[0]]; });
+    if(footLayer) map.removeLayer(footLayer);
+    footLayer=L.polygon(c,{color:'#f59e0b',weight:2,dashArray:'6 4',fill:false,interactive:false}).addTo(map);
+    map.invalidateSize(); map.fitBounds(footLayer.getBounds(),{padding:[20,20]});
+  }catch(e){ console.error(e); }
+}
+function onOrthoLocated(){
+  showFootprint();
+  if(updateWxLocation()){ reverseGeocode(); fetchWeather(true); }
+}
+async function reverseGeocode(){
+  const lat=parseFloat($('wxLat').value), lon=parseFloat($('wxLon').value), el=$('wxPlace');
+  if(!isFinite(lat)||!isFinite(lon)){ el.textContent=''; return; }
+  el.innerHTML=`📍 ${lat.toFixed(5)}° N, ${lon.toFixed(5)}° E`;
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=en&lat=${lat}&lon=${lon}`);
+    const j=await r.json();
+    if(j&&j.display_name) el.innerHTML=`📍 ${lat.toFixed(5)}° N, ${lon.toFixed(5)}° E<br><span style="color:#475569">${esc(j.display_name)}</span>`;
+  }catch(e){}
+}
+function drawDiurnal(canvas,o){
+  const ctx=canvas.getContext('2d'), W=canvas.width, H=canvas.height, L=48, R=14, T=34, B=30;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#0f172a'; ctx.font='bold 13px sans-serif'; ctx.textAlign='left'; ctx.fillText(o.title,L,20);
+  const pts=o.rows.filter(r=>r[o.k]!==null&&r[o.k]!==undefined&&isFinite(r[o.k]));
+  if(!pts.length){ ctx.fillStyle='#94a3b8'; ctx.font='12px sans-serif'; ctx.textAlign='center'; ctx.fillText('No data',W/2,H/2); return; }
+  let lo=Math.min(...pts.map(r=>r[o.k])), hi=Math.max(...pts.map(r=>r[o.k]));
+  if(o.zero) lo=Math.min(0,lo); if(o.max!==undefined) hi=Math.max(hi,o.max);
+  if(!(hi>lo)) hi=lo+1;
+  const pad=(hi-lo)*0.08; if(!o.zero) lo-=pad; hi+=pad;
+  if(o.cap!==undefined){ hi=Math.min(hi,o.cap); lo=Math.max(lo,0); }
+  const x=h=>L+h/23*(W-L-R), y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  if(o.win){ ctx.fillStyle='rgba(2,132,199,.13)'; ctx.fillRect(x(o.win[0]),T,Math.max(2,x(o.win[1])-x(o.win[0])),H-T-B);
+    ctx.fillStyle='#0369a1'; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.fillText('flight',x(o.win[0])+3,T+11); }
+  ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=1; ctx.fillStyle='#475569'; ctx.font='11px sans-serif'; ctx.textAlign='right';
+  const dec=(hi-lo)<2?2:((hi-lo)<20?1:0);
+  for(let i=0;i<=4;i++){ const v=lo+(hi-lo)*i/4, yy=y(v); ctx.beginPath(); ctx.moveTo(L,yy); ctx.lineTo(W-R,yy); ctx.stroke(); ctx.fillText(v.toFixed(dec),L-6,yy+4); }
+  ctx.textAlign='center'; for(let h=0;h<=21;h+=3){ ctx.fillText(String(h).padStart(2,'0'),x(h),H-B+14); }
+  ctx.fillText('hour (local)',(L+W-R)/2,H-4);
+  ctx.save(); ctx.translate(12,T+(H-T-B)/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText(o.unit,0,0); ctx.restore();
+  ctx.strokeStyle=o.color; ctx.lineWidth=2.2; ctx.beginPath();
+  pts.forEach((r,i)=>{ const px=x(r.hour), py=y(r[o.k]); if(i) ctx.lineTo(px,py); else ctx.moveTo(px,py); }); ctx.stroke();
+  ctx.fillStyle=o.color; pts.forEach(r=>{ ctx.beginPath(); ctx.arc(x(r.hour),y(r[o.k]),r.inWindow?3.6:2,0,6.283); ctx.fill(); });
+}
+function drawWeatherCharts(){
+  if(!wx) return; const rows=wx.sum.all, win=wx.sum.hours;
+  const etDay=wx.sum.eto;
+  drawDiurnal($('wxCvT'), {rows,k:'temp',title:'Air temperature (2 m)',unit:'°C',color:'#dc2626',win});
+  drawDiurnal($('wxCvRH'),{rows,k:'rh',title:'Relative humidity',unit:'%',color:'#2563eb',win,cap:100});
+  drawDiurnal($('wxCvRS'),{rows,k:'rs',title:'Solar (shortwave) radiation',unit:'W/m²',color:'#d97706',win,zero:true});
+  drawDiurnal($('wxCvET'),{rows,k:'et',title:'Reference ET (FAO-56)'+(etDay!==null?` — daily total ${etDay.toFixed(2)} mm`:''),unit:'mm/h',color:'#059669',win,zero:true});
+}
+async function fetchWeather(auto){
+  const lat=parseFloat($('wxLat').value), lon=parseFloat($('wxLon').value), date=$('wxDate').value;
+  const info=$('wxInfo'); info.style.display='block';
+  if(!date||!isFinite(lat)||!isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){ info.innerHTML='Enter the flight date and the location (latitude, longitude).'; return; }
+  const my=++wxToken; $('wxBtn').disabled=true; info.innerHTML='Contacting Open-Meteo…';
+  let lastErr=null, sum=null, src='';
+  for(const base of wxEndpoints(date)){
+    try{
+      const r=await fetch(wxUrl(base,lat.toFixed(4),lon.toFixed(4),date));
+      const j=await r.json();
+      if(!r.ok||j.error) throw new Error(j.reason||('HTTP '+r.status));
+      sum=wxSummarize(j,$('wxStart').value,$('wxEnd').value); src=base.includes('archive')?'Open-Meteo historical archive (ERA5 / ERA5-Land)':'Open-Meteo forecast API (best-match model analysis)'; break;
+    }catch(e){ lastErr=e; }
+  }
+  if(my!==wxToken) return;           // a newer request superseded this one
+  $('wxBtn').disabled=false;
+  if(!sum){ info.innerHTML=`<b style="color:#b45309">Could not get weather:</b> ${esc(lastErr?lastErr.message:'unknown error')}. Check the date, the location and your internet connection, or enter T_air and ETo manually.`; return; }
+  $('tair').value=sum.tMean.toFixed(1);
+  if(sum.eto!==null) $('eto').value=sum.eto.toFixed(2);
+  wx={date,lat,lon,startT:$('wxStart').value,endT:$('wxEnd').value,src,sum,fetched:new Date()};
+  $('wxCsvBtn').disabled=false;
+  const f=(v,d=1)=>isFinite(v)?v.toFixed(d):'–';
+  info.innerHTML=`<b>${esc(date)}</b> · hours ${String(sum.hours[0]).padStart(2,'0')}:00–${String(sum.hours[1]).padStart(2,'0')}:00 ${esc(sum.tzAbbr||sum.tz)} (${sum.n} hourly value${sum.n>1?'s':''})<br>`+
+    `T_air mean <b>${f(sum.tMean)} °C</b> (${f(sum.tMin)}–${f(sum.tMax)}) · RH ${f(sum.rhMean,0)} % · VPD ${f(sum.vpdMean,2)} kPa · wind ${f(sum.windMean)} m/s · Rs ${f(sum.rsMean,0)} W/m²<br>`+
+    (sum.eto!==null?`Daily ETo <b>${sum.eto.toFixed(2)} mm/day</b>`:'<b style="color:#b45309">Daily ETo not available for this date: enter it manually.</b>')+
+    `<br><span style="color:#64748b">${esc(src)}. T_air${sum.eto!==null?' and ETo were':' was'} filled in the Calibrate tab. <b>Check that the flight date is correct.</b></span>`;
+  $('wxCard').style.display='block';
+  $('wxCardNote').innerHTML=`${esc(date)} · ${wx.lat.toFixed(4)}°, ${wx.lon.toFixed(4)}° · flight ${String(sum.hours[0]).padStart(2,'0')}:00–${String(sum.hours[1]).padStart(2,'0')}:00 · mean T_air ${f(sum.tMean)} °C${sum.eto!==null?` · ETo ${sum.eto.toFixed(2)} mm/day`:''}`;
+  drawWeatherCharts();
+  setStatus('Weather loaded from Open-Meteo.');
+}
+$('wxBtn').addEventListener('click',()=>fetchWeather(false));
+['wxDate','wxStart','wxEnd','wxLat','wxLon'].forEach(id=>$(id).addEventListener('change',()=>{
+  if(id==='wxLat'||id==='wxLon') reverseGeocode();
+  clearTimeout(wxTimer); wxTimer=setTimeout(()=>fetchWeather(true),400);
+}));
+(function(){ try{ const d=new Date(Date.now()-86400000); $('wxDate').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }catch(e){} })();
+$('wxCsvBtn').addEventListener('click',()=>{
+  if(!wx) return;
+  const h=['datetime_local,in_flight_window,temperature_2m_C,relative_humidity_pct,wind_speed_10m_m_s,shortwave_radiation_W_m2,et0_fao_mm_h,vpd_kPa'];
+  wx.sum.all.forEach(r=>h.push([r.time,r.inWindow?1:0,r.temp??'',r.rh??'',r.wind??'',r.rs??'',r.et??'',r.vpd===null||r.vpd===undefined?'':r.vpd.toFixed(3)].join(',')));
+  h.push(''); h.push(`# daily ET0 FAO-56 (mm/day),${wx.sum.eto??''}`); h.push(`# flight window mean temperature (C),${wx.sum.tMean.toFixed(2)}`);
+  h.push(`# latitude,${wx.lat}`); h.push(`# longitude,${wx.lon}`); h.push(`# source,${wx.src}`); h.push('# data by Open-Meteo.com (CC BY 4.0)');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([h.join('\n')],{type:'text/csv'})); a.download=`weather_openmeteo_${wx.date}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+});
+
+/* =========================================================================
+   PARAMETER SELECTION PAGE
+   ========================================================================= */
+let pending=new Set();
+function updateSelCount(){ $('paramBtn').textContent=`🧪 Select parameters (${SEL.size})`; }
+function presetOn(k){ return PRESETS[k].every(x=>pending.has(x)); }
+function renderParamPage(){
+  $('pselBar').innerHTML='<b style="font-size:11.5px;color:#475569;">Presets (combine several):</b>'+
+    Object.keys(PRESETS).map(k=>`<button class="chip${presetOn(k)?' on':''}" data-preset="${esc(k)}">${presetOn(k)?'✓ ':''}${esc(k)}</button>`).join('')+
+    '<button class="chip" data-preset="__all">Select all</button><button class="chip" data-preset="__none">Clear</button>';
+  let h='';
+  Object.keys(GROUPS).forEach(gk=>{
+    const items=VARS.filter(v=>v.group===gk);
+    h+=`<div class="psel-grp"><h3>${esc(GROUPS[gk])}</h3><button class="chip" data-grp="${gk}" data-on="1" style="border:1px solid var(--primary);background:#fff;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;color:#0369a1;">all</button><button class="chip" data-grp="${gk}" data-on="0" style="border:1px solid var(--primary);background:#fff;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;color:#0369a1;">none</button></div><div class="psel-grid">`+
+      items.map(v=>{
+        const av=prep?varAvailable(v):true, on=pending.has(v.key);
+        return `<label class="psel-item${on?' on':''}${av?'':' na'}" title="${esc(v.m)}"><input type="checkbox" data-key="${v.key}"${on?' checked':''}><span><span class="t">${esc(v.label)}${v.unit?` <span class="u">(${esc(v.unit)})</span>`:''}</span><br><span class="f">${esc(v.f)}</span><br>${v.needs.map(n=>`<span class="pill">${BAND_NAME[n]||n}</span>`).join('')}${av?'':'<span class="pill off">not available with current data</span>'}</span></label>`;
+      }).join('')+'</div>';
+  });
+  $('paramBody').innerHTML=h;
+  updatePselCount();
+}
+function updatePselCount(){
+  $('pselCount').textContent=`${pending.size} of ${VARS.length} selected`;
+  $('pselApply').disabled=pending.size===0;
+}
+function openParams(){ pending=new Set(SEL); renderParamPage(); $('paramModal').style.display='flex'; }
+function closeParams(){ $('paramModal').style.display='none'; }
+$('paramModal').addEventListener('click',e=>{
+  if(e.target===$('paramModal')){ closeParams(); return; }
+  const chip=e.target.closest('[data-preset],[data-grp]');
+  if(chip){
+    if(chip.dataset.preset){
+      const p=chip.dataset.preset;
+      if(p==='__all') pending=new Set(VARS.map(v=>v.key));
+      else if(p==='__none') pending=new Set();
+      else if(presetOn(p)){
+        const keep=new Set(); Object.keys(PRESETS).forEach(k=>{ if(k!==p&&presetOn(k)) PRESETS[k].forEach(x=>keep.add(x)); });
+        PRESETS[p].forEach(x=>{ if(!keep.has(x)) pending.delete(x); });
+      } else PRESETS[p].forEach(x=>pending.add(x));
+    } else {
+      VARS.filter(v=>v.group===chip.dataset.grp).forEach(v=>{ if(chip.dataset.on==='1') pending.add(v.key); else pending.delete(v.key); });
+    }
+    renderParamPage(); return;
+  }
+});
+$('paramModal').addEventListener('change',e=>{
+  const k=e.target.dataset&&e.target.dataset.key; if(!k) return;
+  if(e.target.checked) pending.add(k); else pending.delete(k);
+  e.target.closest('.psel-item').classList.toggle('on',e.target.checked);
+  updatePselCount();
+});
+$('paramBtn').addEventListener('click',openParams);
+$('paramClose').addEventListener('click',closeParams);
+$('pselCancel').addEventListener('click',closeParams);
+$('pselApply').addEventListener('click',()=>{
+  if(!pending.size) return;
+  SEL.clear(); pending.forEach(k=>SEL.add(k));
+  try{ localStorage.setItem(SEL_KEY,JSON.stringify([...SEL])); }catch(e){}
+  closeParams(); updateSelCount();
+  Z=null; hideResults(); updateZonalButtons();
+  if(prep){
+    rebuildLayerSelect($('layerSelect').value); renderFieldGroupSelect();
+    if(geo.hasGeoref&&geo.crs) renderLayer();
+  }
+  setStatus(`${SEL.size} parameter(s) selected.`);
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeParams(); });
+updateSelCount();
+
 /* init */
-$('maskMode').addEventListener('change',()=>{ Z=null; comp=null; hideResults(); updateZonalButtons(); });
+$('maskMode').addEventListener('change',()=>{ Z=null; hideResults(); updateZonalButtons(); });
 $('processBtn').disabled=true;
 </script>
 </body>
